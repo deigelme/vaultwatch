@@ -1,0 +1,42 @@
+# vaultwatch example configuration
+# Copy this file to vaultwatch.yaml and adjust to your environment.
+
+vault:
+  # Address of your HashiCorp Vault instance.
+  address: "http://127.0.0.1:8200"
+
+  # Vault token with read access to the monitored secret paths.
+  # Prefer setting VAULT_TOKEN env variable in production.
+  token: "s.exampletoken"
+
+  # Optional: Vault namespace (Enterprise only).
+  # namespace: "admin"
+
+monitor:
+  # How often vaultwatch polls Vault for secret metadata.
+  interval: 5m
+
+  # List of KV secret paths to monitor for expiration.
+  secret_paths:
+    - secret/data/myapp/database
+    - secret/data/myapp/api-keys
+    - secret/data/infra/tls-cert
+
+alerts:
+  # Slack incoming webhook URL for Slack notifications.
+  # slack_webhook: "https://hooks.slack.com/services/XXX/YYY/ZZZ"
+
+  # Email alert settings via SMTP.
+  email:
+    smtp_host: "smtp.example.com"
+    smtp_port: 587
+    from: "vaultwatch@example.com"
+    recipients:
+      - "ops-team@example.com"
+
+  # Alert thresholds: send a notification when a secret expires within
+  # each of these durations. Accepts Go duration strings.
+  thresholds:
+    - 72h   # 3 days before expiry
+    - 24h   # 1 day before expiry
+    - 6h    # 6 hours before expiry
