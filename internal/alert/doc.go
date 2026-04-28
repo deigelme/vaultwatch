@@ -1,17 +1,26 @@
-// Package alert defines the Alert type and the Notifier interface used by
-// VaultWatch to dispatch secret-expiration notifications.
+// Package alert provides notification primitives for VaultWatch.
 //
-// Supported backends:
-//   - StdoutNotifier: writes formatted alerts to standard output (default).
+// It defines the Alert type, severity levels, and multiple Notifier
+// implementations that can dispatch alerts through different channels:
 //
-// Additional backends (e.g. Slack, PagerDuty, email) can be added by
-// implementing the Notifier interface:
+//   - StdoutNotifier  – writes human-readable alerts to standard output.
+//   - EmailNotifier   – sends alerts via SMTP to one or more recipients.
+//
+// # Alert levels
+//
+// Levels are derived from the time remaining before a secret expires:
+//
+//   - LevelCritical  – fewer than 24 hours remaining.
+//   - LevelWarning   – fewer than 72 hours remaining.
+//   - LevelInfo      – fewer than 168 hours (7 days) remaining.
+//
+// # Adding a new notifier
+//
+// Implement the Notifier interface:
 //
 //	type Notifier interface {
-//	    Send(alert Alert) error
-//	    Name() string
+//		Send(a Alert) error
 //	}
 //
-// Alert severity levels are determined by LevelForTimeLeft, which compares the
-// remaining TTL against configurable warn and critical thresholds.
+// Then wire it up in cmd/vaultwatch/main.go alongside the existing notifiers.
 package alert
