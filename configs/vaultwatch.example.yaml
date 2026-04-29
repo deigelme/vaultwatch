@@ -1,42 +1,62 @@
-# vaultwatch example configuration
-# Copy this file to vaultwatch.yaml and adjust to your environment.
+# VaultWatch example configuration
+# Copy to vaultwatch.yaml and adjust to your environment.
 
-vault:
-  # Address of your HashiCorp Vault instance.
-  address: "http://127.0.0.1:8200"
+vault_address: "https://vault.example.com:8200"
+vault_token: "s.XXXXXXXXXXXXXXXX"
 
-  # Vault token with read access to the monitored secret paths.
-  # Prefer setting VAULT_TOKEN env variable in production.
-  token: "s.exampletoken"
+# Paths to monitor (KV v2 metadata paths)
+secret_paths:
+  - "secret/data/myapp/db"
+  - "secret/data/myapp/api-key"
+  - "secret/data/infra/tls-cert"
 
-  # Optional: Vault namespace (Enterprise only).
-  # namespace: "admin"
+# How often to check for expiring secrets (default: 1h)
+check_interval: "1h"
 
-monitor:
-  # How often vaultwatch polls Vault for secret metadata.
-  interval: 5m
+# Alert thresholds — alerts fire when time-to-expiry falls within these windows
+thresholds:
+  critical: "24h"
+  warning: "72h"
+  info: "168h" # 7 days
 
-  # List of KV secret paths to monitor for expiration.
-  secret_paths:
-    - secret/data/myapp/database
-    - secret/data/myapp/api-keys
-    - secret/data/infra/tls-cert
+# Notifiers — configure one or more
+notifiers:
+  stdout:
+    enabled: true
 
-alerts:
-  # Slack incoming webhook URL for Slack notifications.
-  # slack_webhook: "https://hooks.slack.com/services/XXX/YYY/ZZZ"
-
-  # Email alert settings via SMTP.
   email:
+    enabled: false
     smtp_host: "smtp.example.com"
     smtp_port: 587
     from: "vaultwatch@example.com"
-    recipients:
-      - "ops-team@example.com"
+    to:
+      - "ops@example.com"
 
-  # Alert thresholds: send a notification when a secret expires within
-  # each of these durations. Accepts Go duration strings.
-  thresholds:
-    - 72h   # 3 days before expiry
-    - 24h   # 1 day before expiry
-    - 6h    # 6 hours before expiry
+  slack:
+    enabled: false
+    webhook_url: "https://hooks.slack.com/services/XXX/YYY/ZZZ"
+
+  discord:
+    enabled: false
+    webhook_url: "https://discord.com/api/webhooks/XXX/YYY"
+
+  telegram:
+    enabled: false
+    bot_token: "123456:ABC-DEF..."
+    chat_id: "-100123456789"
+
+  webhook:
+    enabled: false
+    url: "https://example.com/hooks/vaultwatch"
+
+  pagerduty:
+    enabled: false
+    integration_key: "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+
+  opsgenie:
+    enabled: false
+    api_key: "XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
+
+  teams:
+    enabled: false
+    webhook_url: "https://outlook.office.com/webhook/XXX"
