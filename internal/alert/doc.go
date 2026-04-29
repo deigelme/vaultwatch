@@ -1,26 +1,30 @@
 // Package alert provides notification primitives for VaultWatch.
 //
-// It defines the Alert type, severity levels, and multiple Notifier
-// implementations that can dispatch alerts through different channels:
+// # Notifiers
 //
-//   - StdoutNotifier  – writes human-readable alerts to standard output.
-//   - EmailNotifier   – sends alerts via SMTP to one or more recipients.
-//
-// # Alert levels
-//
-// Levels are derived from the time remaining before a secret expires:
-//
-//   - LevelCritical  – fewer than 24 hours remaining.
-//   - LevelWarning   – fewer than 72 hours remaining.
-//   - LevelInfo      – fewer than 168 hours (7 days) remaining.
-//
-// # Adding a new notifier
-//
-// Implement the Notifier interface:
+// Each notifier implements the Notifier interface:
 //
 //	type Notifier interface {
-//		Send(a Alert) error
+//	    Send(a Alert) error
 //	}
 //
-// Then wire it up in cmd/vaultwatch/main.go alongside the existing notifiers.
+// Available notifiers:
+//   - StdoutNotifier  – prints alerts to standard output
+//   - EmailNotifier   – sends alerts via SMTP
+//   - SlackNotifier   – posts messages to a Slack webhook
+//   - WebhookNotifier – HTTP POST to a generic webhook URL
+//   - PagerDutyNotifier – triggers PagerDuty incidents
+//   - OpsGenieNotifier  – creates OpsGenie alerts
+//   - TeamsNotifier     – posts cards to Microsoft Teams
+//   - DiscordNotifier   – sends embeds to a Discord webhook
+//   - TelegramNotifier  – sends messages via the Telegram Bot API
+//   - SNSNotifier       – publishes to an AWS SNS topic
+//   - MultiNotifier    – fans out to multiple notifiers
+//
+// # Alert Levels
+//
+// LevelForTimeLeft maps a remaining duration to a severity level:
+//   - Critical : ≤ 24 h
+//   - Warning  : ≤ 72 h
+//   - Info     : anything longer
 package alert
