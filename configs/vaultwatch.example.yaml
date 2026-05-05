@@ -1,29 +1,29 @@
 # VaultWatch example configuration
-# Copy to vaultwatch.yaml and adjust to your environment.
+# Copy this file to vaultwatch.yaml and adjust to your environment.
 
-vault_address: "https://vault.example.com:8200"
-vault_token: "s.XXXXXXXXXXXXXXXX"
+vault:
+  # Address of the Vault server (required)
+  address: "https://vault.example.com"
 
-# Paths to monitor (KV v2 metadata paths)
-secret_paths:
-  - "secret/data/myapp/db"
-  - "secret/data/myapp/api-key"
-  - "secret/data/infra/tls-cert"
+  # Vault token used for authentication.
+  # Prefer setting VAULT_TOKEN in the environment instead.
+  # token: "s.xxxxxxxxxxxxxxxxxxxx"
 
-# How often to check for expiring secrets (default: 1h)
-check_interval: "1h"
+  # Paths of secrets to monitor (required, at least one)
+  secret_paths:
+    - "secret/data/db/password"
+    - "secret/data/api/key"
+    - "secret/data/tls/cert"
 
-# Alert thresholds — alerts fire when time-to-expiry falls within these windows
-thresholds:
-  critical: "24h"
-  warning: "72h"
-  info: "168h" # 7 days
+# How often VaultWatch polls Vault for secret metadata.
+# Accepts Go duration strings: 1h, 30m, etc. Default: 1h
+interval: "1h"
 
-# Notifiers — configure one or more
-notifiers:
-  stdout:
-    enabled: true
+alerts:
+  # Print alerts to stdout (always enabled in addition to other notifiers)
+  stdout: true
 
+  # Email notifications via SMTP
   email:
     enabled: false
     smtp_host: "smtp.example.com"
@@ -32,31 +32,47 @@ notifiers:
     to:
       - "ops@example.com"
 
+  # Slack incoming webhook
   slack:
     enabled: false
-    webhook_url: "https://hooks.slack.com/services/XXX/YYY/ZZZ"
+    webhook_url: "https://hooks.slack.com/services/T000/B000/xxxx"
 
-  discord:
-    enabled: false
-    webhook_url: "https://discord.com/api/webhooks/XXX/YYY"
-
-  telegram:
-    enabled: false
-    bot_token: "123456:ABC-DEF..."
-    chat_id: "-100123456789"
-
+  # Generic JSON webhook
   webhook:
     enabled: false
-    url: "https://example.com/hooks/vaultwatch"
+    url: "https://hooks.example.com/vaultwatch"
 
+  # PagerDuty Events API v2
   pagerduty:
     enabled: false
-    integration_key: "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+    integration_key: "your-pagerduty-routing-key"
 
+  # OpsGenie Alerts API
   opsgenie:
     enabled: false
-    api_key: "XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
+    api_key: "your-opsgenie-api-key"
 
+  # Microsoft Teams incoming webhook
   teams:
     enabled: false
-    webhook_url: "https://outlook.office.com/webhook/XXX"
+    webhook_url: "https://outlook.office.com/webhook/xxx"
+
+  # Discord webhook
+  discord:
+    enabled: false
+    webhook_url: "https://discord.com/api/webhooks/xxx/yyy"
+
+  # Telegram Bot API
+  telegram:
+    enabled: false
+    bot_token: "123456:ABC-DEF"
+    chat_id: "-100123456789"
+
+  # Jira issue creation
+  jira:
+    enabled: false
+    base_url: "https://yourorg.atlassian.net"
+    username: "bot@yourorg.com"
+    api_token: "your-jira-api-token"
+    project_key: "OPS"
+    issue_type: "Task"
