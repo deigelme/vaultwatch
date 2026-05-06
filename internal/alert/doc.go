@@ -1,43 +1,49 @@
 // Package alert provides notification primitives for VaultWatch.
 //
-// # Alert Levels
+// # Alert levels
 //
-// Alerts are categorised into three levels based on how much time remains
-// before a secret expires:
+// Each secret check produces an [Alert] whose severity is determined by
+// [LevelForTimeLeft]:
 //
-//   - LevelInfo     – more than 7 days remaining
-//   - LevelWarning  – between 1 and 7 days remaining
-//   - LevelCritical – less than 24 hours remaining
+//	- LevelInfo     – more than 7 days remaining
+//	- LevelWarning  – 2–7 days remaining
+//	- LevelCritical – fewer than 2 days remaining
 //
 // # Notifiers
 //
-// Each notifier implements the Notifier interface:
+// A Notifier is any type that implements Send(*Alert) error.  The package
+// ships with the following built-in notifiers:
 //
-//	type Notifier interface {
-//	    Send(Alert) error
-//	}
+//	- [NewStdoutNotifier]       – prints to standard output (default)
+//	- [NewEmailNotifier]        – SMTP email
+//	- [NewSlackNotifier]        – Slack incoming webhook
+//	- [NewWebhookNotifier]      – generic HTTP webhook
+//	- [NewPagerDutyNotifier]    – PagerDuty Events API v2
+//	- [NewOpsGenieNotifier]     – OpsGenie Alerts API
+//	- [NewTeamsNotifier]        – Microsoft Teams incoming webhook
+//	- [NewDiscordNotifier]      – Discord webhook
+//	- [NewTelegramNotifier]     – Telegram Bot API
+//	- [NewSNSNotifier]          – AWS Simple Notification Service
+//	- [NewVictorOpsNotifier]    – VictorOps REST endpoint
+//	- [NewSyslogNotifier]       – local or remote syslog
+//	- [NewMattermostNotifier]   – Mattermost incoming webhook
+//	- [NewGoogleChatNotifier]   – Google Chat webhook
+//	- [NewDatadogNotifier]      – Datadog Events API
+//	- [NewSplunkNotifier]       – Splunk HTTP Event Collector
+//	- [NewNewRelicNotifier]     – New Relic Events API
+//	- [NewZendutyNotifier]      – Zenduty alert API
+//	- [NewAlertmanagerNotifier] – Prometheus Alertmanager
+//	- [NewJiraNotifier]         – Jira issue creation
+//	- [NewServiceNowNotifier]   – ServiceNow incident creation
+//	- [NewRocketChatNotifier]   – Rocket.Chat incoming webhook
+//	- [NewSignalSciencesNotifier] – Signal Sciences custom alert
+//	- [NewGotifyNotifier]       – Gotify push notification
+//	- [NewMatrixNotifier]       – Matrix room message
+//	- [NewZulipNotifier]        – Zulip message
+//	- [NewPushoverNotifier]     – Pushover push notification
 //
-// Available notifiers:
+// # Fan-out
 //
-//   - StdoutNotifier   – prints alerts to standard output
-//   - EmailNotifier    – sends alerts via SMTP
-//   - SlackNotifier    – posts alerts to a Slack webhook
-//   - WebhookNotifier  – posts a JSON payload to an arbitrary HTTP endpoint
-//   - PagerDutyNotifier – triggers PagerDuty incidents
-//   - OpsGenieNotifier  – creates OpsGenie alerts
-//   - TeamsNotifier     – sends adaptive cards to Microsoft Teams
-//   - DiscordNotifier   – posts embeds to a Discord webhook
-//   - TelegramNotifier  – sends messages via the Telegram Bot API
-//   - SNSNotifier       – publishes to an AWS SNS topic
-//   - VictorOpsNotifier – triggers VictorOps incidents
-//   - SyslogNotifier    – writes alerts to the local syslog daemon
-//   - MattermostNotifier – posts to a Mattermost incoming webhook
-//   - GoogleChatNotifier – sends cards to a Google Chat webhook
-//   - DatadogNotifier    – posts events to the Datadog Events API
-//   - SplunkNotifier     – sends events to Splunk HTTP Event Collector
-//   - NewRelicNotifier   – creates New Relic incidents
-//   - ZendutyNotifier    – triggers Zenduty incidents
-//   - AlertmanagerNotifier – posts alerts to Prometheus Alertmanager
-//   - JiraNotifier       – creates Jira issues for expiring secrets
-//   - MultiNotifier     – fans out to multiple notifiers simultaneously
+// [NewMultiNotifier] wraps multiple Notifiers and delivers each alert to all
+// of them, collecting any errors without short-circuiting.
 package alert
