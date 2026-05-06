@@ -8,68 +8,72 @@ import (
 	"time"
 )
 
-const defaultOpsGenieURL = "https://api.opsgenie.com/v2/alerts"
+const defaultOpsGenieEndpoint = "https://api.opsgenie.com/v2/alerts"
 
 // OpsGenieNotifier sends alerts to OpsGenie.
 type OpsGenieNotifier struct {
-	apiKey  string
-	apiURL  string
-	client  *http.Client
+	apiKey   string
+	endpoint string
+	client   *http.Client
+}
+
+// NewOpsGenieNotifier creates a new OpsGenieNotifier.
+// apiKey is required; endpoint is optional (defaults to OpsGenie cloud API).
+func NewOpsGenieNotifier(apiKey, endpoint string) (*OpsGenieNotifier, error) {
+	if apiKey == "" {
+		return nil, fmt.Errorf("opsgenie: api key must not be empty")
+	}
+	if endpoint == "" {
+		endpoint = defaultOpsGenieEndpoint
+	}
+	return &OpsGenieNotifier{
+		apiKey:   apiKey,
+		endpoint: endpoint,
+		client:   &http.Client{Timeout: 10 * time.Second},
+	}, nil
 }
 
 type opsGeniePayload struct {
 	Message     string            `json:"message"`
 	Description string            `json:"description"`
 	Priority    string            `json:"priority"`
-	Tags        []string          `json:"tags"`
-	Details     map[string]string `json:"details"`
+	Details     map[string]string `json:"details,omitempty"`
 }
 
-// NewOpsGenieNotifier creates a new OpsGenieNotifier.
-// apiKey must be non-empty. apiURL is optional; defaults to the OpsGenie v2 alerts endpoint.
-func NewOpsGenieNotifier(apiKey, apiURL string) (*OpsGenieNotifier, error) {
-	if apiKey == "" {
-		return nil, fmt.Errorf("opsgenie: api key must not be empty")
+func opsGeniePriority(level Level) string {
+	switch level {
+	case LevelCritical:
+		return "P1"
+	case LevelWarning:
+		return "P3"
+	default:
+		return "P5"
 	}
-	if apiURL == "" {
-		apiURL = defaultOpsGenieURL
-	}
-	return &OpsGenieNotifier{
-		apiKey: apiKey,
-		apiURL: apiURL,
-		client: &http.Client{Timeout: 10 * time.Second},
-	}, nil
 }
 
-// Send delivers an Alert to OpsGenie.
-func (o *OpsGenieNotifier) Send(a Alert) error {
-	priority := opsGeniePriority(a.Level)
-
+// Send delivers the alert to OpsGenie.
+func (n *OpsGenieNotifier) Send(a Alert) error {
 	payload := opsGeniePayload{
-		Message:     fmt.Sprintf("VaultWatch: %s", a.SecretPath),
+		Message:     fmt.Sprintf("[%s] Vault secret expiring: %s", a.Level, a.SecretPath),
 		Description: a.String(),
-		Priority:    priority,
-		Tags:        []string{"vaultwatch", string(a.Level)},
+		Priority:    opsGeniePriority(a.Level),
 		Details: map[string]string{
 			"secret_path": a.SecretPath,
-			"expires_at":  a.ExpiresAt.Format(time.RFC3339),
-			"time_left":   a.TimeLeft.String(),
+			"expires_in":  a.TimeLeft.String(),
 		},
 	}
-
 	body, err := json.Marshal(payload)
 	if err != nil {
 		return fmt.Errorf("opsgenie: marshal payload: %w", err)
 	}
-
-	req, err := http.NewRequest(http.MethodPost, o.apiURL, bytes.NewReader(body))
+	req, err := http.NewRequest(http.MethodPost, n.endpoint, bytes.NewReader(body))
 	if err != nil {
 		return fmt.Errorf("opsgenie: create request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "GenieKey "+o.apiKey)
+	req.Header.Set("Authorization", "GenieKey "+n.apiKey)
 
-	resp, err := o.client.Do(req)
+	resp, err := n.client.Do(req)
 	if err != nil {
 		return fmt.Errorf("opsgenie: send request: %w", err)
 	}
@@ -79,15 +83,4 @@ func (o *OpsGenieNotifier) Send(a Alert) error {
 		return fmt.Errorf("opsgenie: unexpected status %d", resp.StatusCode)
 	}
 	return nil
-}
-
-func opsGeniePriority(level Level) string {
-	switch level {
-	case LevelCritical:
-		return "P1"
-	case LevelWarning:
-		return "P2"
-	default:
-		return "P3"
-	}
 }
