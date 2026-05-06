@@ -13,9 +13,16 @@
 //     regular interval and invokes registered AlertFunc callbacks when a
 //     secret's remaining TTL falls within the configured alert threshold.
 //
+//   - AlertFunc: a callback type invoked by Monitor when a secret's TTL
+//     drops at or below the configured threshold. Implementations should
+//     be non-blocking; long-running work should be dispatched to a goroutine.
+//
 // Typical usage:
 //
 //	client, err := vault.NewClient(cfg.VaultAddress, cfg.VaultToken)
+//	if err != nil {
+//		log.Fatal(err)
+//	}
 //	monitor := vault.NewMonitor(client, cfg, myAlertFunc)
 //	monitor.Run(done)
 package vault
