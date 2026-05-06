@@ -89,3 +89,20 @@ func TestOpsGenieNotifier_Send_NonOKStatus(t *testing.T) {
 		t.Fatal("expected error for non-2xx status")
 	}
 }
+
+func TestOpsGenieNotifier_Send_ContentTypeJSON(t *testing.T) {
+	var gotContentType string
+	srv := startFakeOpsGenie(t, http.StatusAccepted, func(r *http.Request) {
+		gotContentType = r.Header.Get("Content-Type")
+	})
+	defer srv.Close()
+
+	n, _ := NewOpsGenieNotifier("key", srv.URL)
+	a := Alert{Level: LevelWarning, SecretPath: "secret/x", TimeLeft: 24 * time.Hour}
+	if err := n.Send(a); err != nil {
+		t.Fatalf("Send() error: %v", err)
+	}
+	if gotContentType != "application/json" {
+		t.Errorf("Content-Type = %q, want %q", gotContentType, "application/json")
+	}
+}
