@@ -8,71 +8,78 @@ import (
 	"time"
 )
 
-const pagerDutyEventURL = "https://events.pagerduty.com/v2/enqueue"
+const pagerDutyEventsURL = "https://events.pagerduty.com/v2/enqueue"
 
 // PagerDutyNotifier sends alerts to PagerDuty via the Events API v2.
 type PagerDutyNotifier struct {
 	integrationKey string
-	httpClient     *http.Client
-	eventURL       string
+	endpoint       string
+	client         *http.Client
 }
 
-type pdPayload struct {
-	Summary   string `json:"summary"`
-	Severity  string `json:"severity"`
-	Timestamp string `json:"timestamp"`
-	Source    string `json:"source"`
-}
-
-type pdEvent struct {
-	RoutingKey  string    `json:"routing_key"`
-	EventAction string    `json:"event_action"`
-	Payload     pdPayload `json:"payload"`
-}
-
-// NewPagerDutyNotifier creates a PagerDutyNotifier with the given integration key.
+// NewPagerDutyNotifier creates a PagerDutyNotifier.
+// integrationKey is the PagerDuty Events API v2 integration key.
 func NewPagerDutyNotifier(integrationKey string) (*PagerDutyNotifier, error) {
 	if integrationKey == "" {
 		return nil, fmt.Errorf("pagerduty: integration key must not be empty")
 	}
 	return &PagerDutyNotifier{
 		integrationKey: integrationKey,
-		httpClient:     &http.Client{Timeout: 10 * time.Second},
-		eventURL:       pagerDutyEventURL,
+		endpoint:       pagerDutyEventsURL,
+		client:         &http.Client{Timeout: 10 * time.Second},
 	}, nil
 }
 
-// Send dispatches an Alert to PagerDuty as a trigger event.
-func (p *PagerDutyNotifier) Send(a Alert) error {
-	severity := "warning"
-	if a.Level == Critical {
-		severity = "critical"
-	}
+type pagerDutyPayload struct {
+	RoutingKey  string            `json:"routing_key"`
+	EventAction string            `json:"event_action"`
+	Payload     pagerDutyInner    `json:"payload"`
+}
 
-	event := pdEvent{
-		RoutingKey:  p.integrationKey,
+type pagerDutyInner struct {
+	Summary   string `json:"summary"`
+	Severity  string `json:"severity"`
+	Source    string `json:"source"`
+	Timestamp string `json:"timestamp"`
+}
+
+func pagerDutySeverity(level Level) string {
+	switch level {
+	case LevelCritical:
+		return "critical"
+	case LevelWarning:
+		return "warning"
+	default:
+		return "info"
+	}
+}
+
+// Send dispatches an alert to PagerDuty.
+func (n *PagerDutyNotifier) Send(a Alert) error {
+	body := pagerDutyPayload{
+		RoutingKey:  n.integrationKey,
 		EventAction: "trigger",
-		Payload: pdPayload{
+		Payload: pagerDutyInner{
 			Summary:   a.String(),
-			Severity:  severity,
-			Timestamp: time.Now().UTC().Format(time.RFC3339),
+			Severity:  pagerDutySeverity(a.Level),
 			Source:    "vaultwatch",
+			Timestamp: time.Now().UTC().Format(time.RFC3339),
 		},
 	}
 
-	body, err := json.Marshal(event)
+	data, err := json.Marshal(body)
 	if err != nil {
-		return fmt.Errorf("pagerduty: failed to marshal event: %w", err)
+		return fmt.Errorf("pagerduty: marshal payload: %w", err)
 	}
 
-	resp, err := p.httpClient.Post(p.eventURL, "application/json", bytes.NewReader(body))
+	resp, err := n.client.Post(n.endpoint, "application/json", bytes.NewReader(data))
 	if err != nil {
-		return fmt.Errorf("pagerduty: request failed: %w", err)
+		return fmt.Errorf("pagerduty: send request: %w", err)
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode < 200 || resp.StatusCode > 299 {
-		return fmt.Errorf("pagerduty: unexpected status code %d", resp.StatusCode)
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("pagerduty: unexpected status %d", resp.StatusCode)
 	}
 	return nil
 }
