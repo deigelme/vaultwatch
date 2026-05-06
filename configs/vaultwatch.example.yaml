@@ -1,26 +1,32 @@
 # vaultwatch example configuration
-# Copy this file to vaultwatch.yaml and adjust as needed.
+# Copy this file to vaultwatch.yaml and adjust to your environment.
 
 vault:
-  address: "https://vault.example.com"
-  token: "s.XXXXXXXXXXXXXXXXXXXX"
-  # Optional: path to a CA certificate for TLS verification
-  # ca_cert: "/etc/ssl/certs/vault-ca.pem"
+  # Address of your Vault server (required)
+  address: "https://vault.example.com:8200"
 
-# Paths to monitor. Each entry is a KV secret path.
-secret_paths:
-  - "secret/data/db/password"
-  - "secret/data/api/key"
-  - "secret/data/tls/cert"
+  # Vault token (or use VAULT_TOKEN env var)
+  token: ""
 
-# How often to check for expiring secrets (e.g. 1h, 30m, 24h)
+  # TLS settings
+  tls_skip_verify: false
+
+  # Paths to KV secrets to monitor (required, at least one)
+  secret_paths:
+    - "secret/data/database/prod"
+    - "secret/data/api/stripe"
+    - "secret/data/tls/cert"
+
+# How often to poll Vault for expiration data (default: 1h)
 check_interval: "1h"
 
-# Alert thresholds — alerts fire when time-to-expiry falls below these values.
+# Alert thresholds — fire alerts when time-to-expiry falls below these values
 thresholds:
-  warning:  "72h"
-  critical: "24h"
+  critical: "24h"   # fire CRITICAL alert
+  warning:  "72h"   # fire WARNING alert
+  info:     "168h"  # fire INFO alert (7 days)
 
+# Alerting channels — enable one or more
 alerts:
   stdout:
     enabled: true
@@ -32,8 +38,8 @@ alerts:
     from: "vaultwatch@example.com"
     to:
       - "ops@example.com"
-    username: "vaultwatch@example.com"
-    password: "secret"
+    username: ""
+    password: ""
 
   slack:
     enabled: false
@@ -41,60 +47,143 @@ alerts:
 
   pagerduty:
     enabled: false
-    integration_key: "your-pagerduty-integration-key"
+    integration_key: ""
 
   opsgenie:
     enabled: false
-    api_key: "your-opsgenie-api-key"
+    api_key: ""
 
   teams:
     enabled: false
-    webhook_url: "https://outlook.office.com/webhook/XXX"
+    webhook_url: ""
 
   discord:
     enabled: false
-    webhook_url: "https://discord.com/api/webhooks/XXX/YYY"
+    webhook_url: ""
 
   telegram:
     enabled: false
-    bot_token: "your-telegram-bot-token"
-    chat_id: "your-chat-id"
-
-  webhook:
-    enabled: false
-    url: "https://your-webhook-endpoint.example.com/alert"
+    bot_token: ""
+    chat_id: ""
 
   victorops:
     enabled: false
-    routing_url: "https://alert.victorops.com/integrations/XXX"
+    webhook_url: ""
+
+  mattermost:
+    enabled: false
+    webhook_url: ""
+    channel: ""
+    username: "vaultwatch"
+
+  googlechat:
+    enabled: false
+    webhook_url: ""
 
   datadog:
     enabled: false
-    api_key: "your-datadog-api-key"
+    api_key: ""
 
   splunk:
     enabled: false
-    hec_url: "https://splunk.example.com:8088/services/collector"
-    token: "your-splunk-hec-token"
+    hec_url: ""
+    hec_token: ""
 
   newrelic:
     enabled: false
-    account_id: "your-account-id"
-    api_key: "your-newrelic-api-key"
+    account_id: ""
+    api_key: ""
+
+  zenduty:
+    enabled: false
+    integration_key: ""
+
+  alertmanager:
+    enabled: false
+    endpoint: "http://alertmanager.example.com:9093"
 
   jira:
     enabled: false
     base_url: "https://yourorg.atlassian.net"
-    username: "jira-user@example.com"
-    api_token: "your-jira-api-token"
+    username: ""
+    api_token: ""
     project_key: "OPS"
 
   servicenow:
     enabled: false
     base_url: "https://yourinstance.service-now.com"
-    username: "admin"
-    password: "secret"
+    username: ""
+    password: ""
+
+  rocketchat:
+    enabled: false
+    webhook_url: ""
+
+  gotify:
+    enabled: false
+    base_url: "http://gotify.example.com"
+    token: ""
+
+  matrix:
+    enabled: false
+    homeserver: "https://matrix.example.com"
+    access_token: ""
+    room_id: "!roomid:example.com"
+
+  zulip:
+    enabled: false
+    base_url: "https://yourorg.zulipchat.com"
+    bot_email: ""
+    api_key: ""
+    stream: "alerts"
+    topic: "vault"
+
+  pushover:
+    enabled: false
+    app_token: ""
+    user_key: ""
+
+  lark:
+    enabled: false
+    webhook_url: ""
 
   pagertree:
     enabled: false
-    integration_url: "https://api.pagertree.com/integration/XXX"
+    webhook_url: ""
+
+  linear:
+    enabled: false
+    api_key: ""
+    team_id: ""
+
+  grafana:
+    enabled: false
+    url: "http://grafana.example.com:3000"
+    api_key: ""
+
+  campfire:
+    enabled: false
+    account_id: ""
+    campfire_id: ""
+    token: ""
+
+  webhook:
+    enabled: false
+    url: ""
+    # Optional extra headers
+    headers: {}
+
+  httpget:
+    enabled: false
+    url: ""
+
+  sns:
+    enabled: false
+    topic_arn: ""
+    region: "us-east-1"
+
+  syslog:
+    enabled: false
+    network: ""       # empty = local unix socket; "tcp" or "udp" for remote
+    address: ""       # e.g. "logs.example.com:514"
+    tag: "vaultwatch"
