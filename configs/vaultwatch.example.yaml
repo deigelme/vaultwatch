@@ -1,78 +1,85 @@
 # VaultWatch example configuration
-# Copy this file to vaultwatch.yaml and adjust to your environment.
+# Copy this file to vaultwatch.yaml and adjust as needed.
 
-vault:
-  # Address of the Vault server (required)
-  address: "https://vault.example.com"
+vault_address: "https://vault.example.com"
+vault_token: "s.XXXXXXXXXXXXXXXXXXXX"
 
-  # Vault token used for authentication.
-  # Prefer setting VAULT_TOKEN in the environment instead.
-  # token: "s.xxxxxxxxxxxxxxxxxxxx"
+# Paths to monitor. Each entry is a KV v2 secret path.
+secret_paths:
+  - "secret/data/myapp/db"
+  - "secret/data/myapp/api-key"
+  - "secret/data/platform/tls-cert"
 
-  # Paths of secrets to monitor (required, at least one)
-  secret_paths:
-    - "secret/data/db/password"
-    - "secret/data/api/key"
-    - "secret/data/tls/cert"
+# How often to poll Vault for secret metadata.
+check_interval: "1h"
 
-# How often VaultWatch polls Vault for secret metadata.
-# Accepts Go duration strings: 1h, 30m, etc. Default: 1h
-interval: "1h"
+# Alert thresholds. Alerts fire when time-to-expiry falls below these values.
+alert_thresholds:
+  warning:  "72h"
+  critical: "24h"
 
-alerts:
-  # Print alerts to stdout (always enabled in addition to other notifiers)
-  stdout: true
+# Notifiers — enable one or more.
+notifiers:
 
-  # Email notifications via SMTP
+  # Print alerts to stdout (always useful for debugging).
+  stdout:
+    enabled: true
+
+  # Send email via SMTP.
   email:
     enabled: false
     smtp_host: "smtp.example.com"
     smtp_port: 587
-    from: "vaultwatch@example.com"
+    username: "alerts@example.com"
+    password: "secret"
+    from: "alerts@example.com"
     to:
       - "ops@example.com"
 
-  # Slack incoming webhook
+  # Post to a Slack channel via incoming webhook.
   slack:
     enabled: false
-    webhook_url: "https://hooks.slack.com/services/T000/B000/xxxx"
+    webhook_url: "https://hooks.slack.com/services/XXX/YYY/ZZZ"
 
-  # Generic JSON webhook
+  # Generic outbound webhook (JSON POST).
   webhook:
     enabled: false
     url: "https://hooks.example.com/vaultwatch"
 
-  # PagerDuty Events API v2
+  # PagerDuty Events API v2.
   pagerduty:
     enabled: false
-    integration_key: "your-pagerduty-routing-key"
+    integration_key: "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
 
-  # OpsGenie Alerts API
+  # OpsGenie Alerts API.
   opsgenie:
     enabled: false
-    api_key: "your-opsgenie-api-key"
+    api_key: "XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
 
-  # Microsoft Teams incoming webhook
+  # Microsoft Teams incoming webhook.
   teams:
     enabled: false
-    webhook_url: "https://outlook.office.com/webhook/xxx"
+    webhook_url: "https://outlook.office.com/webhook/XXX"
 
-  # Discord webhook
+  # Discord channel webhook.
   discord:
     enabled: false
-    webhook_url: "https://discord.com/api/webhooks/xxx/yyy"
+    webhook_url: "https://discord.com/api/webhooks/XXX/YYY"
 
-  # Telegram Bot API
+  # Telegram bot.
   telegram:
     enabled: false
-    bot_token: "123456:ABC-DEF"
-    chat_id: "-100123456789"
+    bot_token: "123456789:XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+    chat_id: "-1001234567890"
 
-  # Jira issue creation
-  jira:
+  # AWS SNS topic.
+  sns:
     enabled: false
-    base_url: "https://yourorg.atlassian.net"
-    username: "bot@yourorg.com"
-    api_token: "your-jira-api-token"
-    project_key: "OPS"
-    issue_type: "Task"
+    topic_arn: "arn:aws:sns:us-east-1:123456789012:vaultwatch"
+    region: "us-east-1"
+
+  # Gotify (self-hosted push notifications).
+  gotify:
+    enabled: false
+    base_url: "https://gotify.example.com"
+    token: "XXXXXXXXXXXX"
