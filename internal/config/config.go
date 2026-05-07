@@ -8,76 +8,70 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// Config holds the full vaultwatch configuration.
+// Config holds the full VaultWatch configuration.
 type Config struct {
-	Vault   VaultConfig   `yaml:"vault"`
-	Alerts  AlertsConfig  `yaml:"alerts"`
-	Monitor MonitorConfig `yaml:"monitor"`
+	Vault         VaultConfig    `yaml:"vault"`
+	Secrets       []SecretConfig `yaml:"secrets"`
+	CheckInterval time.Duration  `yaml:"check_interval"`
+	WarnBefore    time.Duration  `yaml:"warn_before"`
+	CriticalBefore time.Duration `yaml:"critical_before"`
+	Alerts        []AlertConfig  `yaml:"alerts"`
 }
 
-// VaultConfig contains Vault connection settings.
+// VaultConfig holds Vault connection settings.
 type VaultConfig struct {
-	Address   string `yaml:"address"`
-	Token     string `yaml:"token"`
-	Namespace string `yaml:"namespace"`
+	Address     string `yaml:"address"`
+	Token       string `yaml:"token"`
+	TLSSkipVerify bool `yaml:"tls_skip_verify"`
+	CACert      string `yaml:"ca_cert"`
 }
 
-// AlertsConfig defines how and when alerts are sent.
-type AlertsConfig struct {
-	SlackWebhook string          `yaml:"slack_webhook"`
-	Email        EmailConfig     `yaml:"email"`
-	Thresholds   []time.Duration `yaml:"thresholds"`
+// SecretConfig describes a single secret path to monitor.
+type SecretConfig struct {
+	Path           string        `yaml:"path"`
+	WarnBefore     time.Duration `yaml:"warn_before"`
+	CriticalBefore time.Duration `yaml:"critical_before"`
 }
 
-// EmailConfig holds SMTP settings for email alerts.
-type EmailConfig struct {
-	SMTPHost   string   `yaml:"smtp_host"`
-	SMTPPort   int      `yaml:"smtp_port"`
-	From       string   `yaml:"from"`
-	Recipients []string `yaml:"recipients"`
+// AlertConfig holds the type and arbitrary key/value settings for a notifier.
+type AlertConfig struct {
+	Type string `yaml:"type"`
+	// All remaining fields are decoded into Extra for notifier-specific use.
+	Extra map[string]string `yaml:",inline"`
 }
 
-// MonitorConfig controls the monitoring behaviour.
-type MonitorConfig struct {
-	Interval   time.Duration `yaml:"interval"`
-	SecretPaths []string     `yaml:"secret_paths"`
-}
+const (
+	defaultCheckInterval  = 5 * time.Minute
+	defaultWarnBefore     = 72 * time.Hour
+	defaultCriticalBefore = 24 * time.Hour
+)
 
-// Load reads and parses a YAML config file from the given path.
+// Load reads and validates a YAML configuration file at path.
 func Load(path string) (*Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("reading config file %q: %w", path, err)
+		return nil, fmt.Errorf("config: read %q: %w", path, err)
 	}
 
 	var cfg Config
 	if err := yaml.Unmarshal(data, &cfg); err != nil {
-		return nil, fmt.Errorf("parsing config file %q: %w", path, err)
+		return nil, fmt.Errorf("config: parse %q: %w", path, err)
 	}
 
-	if err := cfg.validate(); err != nil {
-		return nil, fmt.Errorf("invalid config: %w", err)
+	if cfg.Vault.Address == "" {
+		return nil, fmt.Errorf("config: vault.address is required")
 	}
-
+	if len(cfg.Secrets) == 0 {
+		return nil, fmt.Errorf("config: at least one secret path is required")
+	}
+	if cfg.CheckInterval <= 0 {
+		cfg.CheckInterval = defaultCheckInterval
+	}
+	if cfg.WarnBefore <= 0 {
+		cfg.WarnBefore = defaultWarnBefore
+	}
+	if cfg.CriticalBefore <= 0 {
+		cfg.CriticalBefore = defaultCriticalBefore
+	}
 	return &cfg, nil
-}
-
-// validate performs basic sanity checks on the loaded configuration.
-func (c *Config) validate() error {
-	if c.Vault.Address == "" {
-		return fmt.Errorf("vault.address is required")
-	}
-	if c.Vault.Token == "" {
-		return fmt.Errorf("vault.token is required")
-	}
-	if len(c.Monitor.SecretPaths) == 0 {
-		return fmt.Errorf("monitor.secret_paths must contain at least one path")
-	}
-	if c.Monitor.Interval <= 0 {
-		c.Monitor.Interval = 5 * time.Minute
-	}
-	if len(c.Alerts.Thresholds) == 0 {
-		c.Alerts.Thresholds = []time.Duration{72 * time.Hour, 24 * time.Hour}
-	}
-	return nil
 }

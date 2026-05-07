@@ -1,189 +1,214 @@
 # vaultwatch example configuration
-# Copy this file to vaultwatch.yaml and adjust to your environment.
+# Copy to vaultwatch.yaml and adjust to your environment.
 
 vault:
-  # Address of your Vault server (required)
-  address: "https://vault.example.com:8200"
+  # Address of the Vault server (required).
+  address: "https://vault.example.com"
 
-  # Vault token (or use VAULT_TOKEN env var)
-  token: ""
+  # Vault token used for authentication.
+  # Prefer VAULT_TOKEN env var in production.
+  token: "s.XXXXXXXXXXXX"
 
-  # TLS settings
-  tls_skip_verify: false
+  # TLS settings (optional).
+  # tls_skip_verify: false
+  # ca_cert: /etc/ssl/vault-ca.pem
 
-  # Paths to KV secrets to monitor (required, at least one)
-  secret_paths:
-    - "secret/data/database/prod"
-    - "secret/data/api/stripe"
-    - "secret/data/tls/cert"
+# Secrets to monitor (at least one path required).
+secrets:
+  - path: "secret/data/myapp/database"
+    # Override the global warning/critical thresholds for this secret.
+    # warn_before:     72h
+    # critical_before: 24h
 
-# How often to poll Vault for expiration data (default: 1h)
-check_interval: "1h"
+  - path: "secret/data/myapp/api-key"
 
-# Alert thresholds — fire alerts when time-to-expiry falls below these values
-thresholds:
-  critical: "24h"   # fire CRITICAL alert
-  warning:  "72h"   # fire WARNING alert
-  info:     "168h"  # fire INFO alert (7 days)
+  - path: "pki/cert/web"
 
-# Alerting channels — enable one or more
+# How often VaultWatch polls Vault for secret metadata.
+# Accepts Go duration strings: 30s, 5m, 1h, etc.
+check_interval: 5m
+
+# Alert thresholds (global defaults).
+warn_before:     72h
+critical_before: 24h
+
 alerts:
-  stdout:
-    enabled: true
+  # ── stdout ────────────────────────────────────────────────────────────────
+  - type: stdout
 
-  email:
-    enabled: false
-    smtp_host: "smtp.example.com"
+  # ── email ─────────────────────────────────────────────────────────────────
+  - type: email
+    smtp_host: smtp.example.com
     smtp_port: 587
-    from: "vaultwatch@example.com"
+    username:  alerts@example.com
+    password:  secret
+    from:      alerts@example.com
     to:
-      - "ops@example.com"
-    username: ""
-    password: ""
+      - oncall@example.com
 
-  slack:
-    enabled: false
-    webhook_url: "https://hooks.slack.com/services/XXX/YYY/ZZZ"
+  # ── Slack ─────────────────────────────────────────────────────────────────
+  - type: slack
+    webhook_url: "https://hooks.slack.com/services/T000/B000/XXXX"
 
-  pagerduty:
-    enabled: false
-    integration_key: ""
+  # ── generic webhook ───────────────────────────────────────────────────────
+  - type: webhook
+    url: "https://ingest.example.com/vaultwatch"
 
-  opsgenie:
-    enabled: false
-    api_key: ""
+  # ── PagerDuty ─────────────────────────────────────────────────────────────
+  - type: pagerduty
+    integration_key: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 
-  teams:
-    enabled: false
-    webhook_url: ""
+  # ── OpsGenie ──────────────────────────────────────────────────────────────
+  - type: opsgenie
+    api_key: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 
-  discord:
-    enabled: false
-    webhook_url: ""
+  # ── Microsoft Teams ───────────────────────────────────────────────────────
+  - type: teams
+    webhook_url: "https://outlook.office.com/webhook/..."
 
-  telegram:
-    enabled: false
-    bot_token: ""
-    chat_id: ""
+  # ── Discord ───────────────────────────────────────────────────────────────
+  - type: discord
+    webhook_url: "https://discord.com/api/webhooks/000/XXXX"
 
-  victorops:
-    enabled: false
-    webhook_url: ""
+  # ── Telegram ──────────────────────────────────────────────────────────────
+  - type: telegram
+    bot_token: "123456:ABC-DEF"
+    chat_id:   "-100123456789"
 
-  mattermost:
-    enabled: false
-    webhook_url: ""
-    channel: ""
-    username: "vaultwatch"
+  # ── AWS SNS ───────────────────────────────────────────────────────────────
+  - type: sns
+    topic_arn: "arn:aws:sns:us-east-1:123456789012:vaultwatch"
+    region:    "us-east-1"
 
-  googlechat:
-    enabled: false
-    webhook_url: ""
+  # ── VictorOps ─────────────────────────────────────────────────────────────
+  - type: victorops
+    webhook_url: "https://alert.victorops.com/integrations/generic/..."
 
-  datadog:
-    enabled: false
-    api_key: ""
+  # ── Syslog ────────────────────────────────────────────────────────────────
+  - type: syslog
+    network:  udp
+    address:  "localhost:514"
+    tag:      vaultwatch
 
-  splunk:
-    enabled: false
-    hec_url: ""
-    hec_token: ""
+  # ── Mattermost ────────────────────────────────────────────────────────────
+  - type: mattermost
+    webhook_url: "https://mattermost.example.com/hooks/XXXX"
 
-  newrelic:
-    enabled: false
-    account_id: ""
-    api_key: ""
+  # ── Google Chat ───────────────────────────────────────────────────────────
+  - type: googlechat
+    webhook_url: "https://chat.googleapis.com/v1/spaces/.../messages?key=..."
 
-  zenduty:
-    enabled: false
-    integration_key: ""
+  # ── Datadog ───────────────────────────────────────────────────────────────
+  - type: datadog
+    api_key: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 
-  alertmanager:
-    enabled: false
+  # ── Splunk HEC ────────────────────────────────────────────────────────────
+  - type: splunk
+    hec_url:   "https://splunk.example.com:8088/services/collector"
+    hec_token: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+
+  # ── New Relic ─────────────────────────────────────────────────────────────
+  - type: newrelic
+    account_id: "1234567"
+    api_key:    "NRAK-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+
+  # ── Zenduty ───────────────────────────────────────────────────────────────
+  - type: zenduty
+    api_key: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+
+  # ── Alertmanager ──────────────────────────────────────────────────────────
+  - type: alertmanager
     endpoint: "http://alertmanager.example.com:9093"
 
-  jira:
-    enabled: false
-    base_url: "https://yourorg.atlassian.net"
-    username: ""
-    api_token: ""
-    project_key: "OPS"
+  # ── Jira ──────────────────────────────────────────────────────────────────
+  - type: jira
+    base_url:    "https://yourorg.atlassian.net"
+    username:    jira-bot@example.com
+    api_token:   "ATATT3xFfGF0..."
+    project_key: OPS
 
-  servicenow:
-    enabled: false
-    base_url: "https://yourinstance.service-now.com"
-    username: ""
-    password: ""
+  # ── ServiceNow ────────────────────────────────────────────────────────────
+  - type: servicenow
+    base_url:  "https://yourinstance.service-now.com"
+    username:  vaultwatch
+    password:  secret
 
-  rocketchat:
-    enabled: false
-    webhook_url: ""
+  # ── Rocket.Chat ───────────────────────────────────────────────────────────
+  - type: rocketchat
+    webhook_url: "https://rocketchat.example.com/hooks/XXXX"
 
-  gotify:
-    enabled: false
-    base_url: "http://gotify.example.com"
-    token: ""
+  # ── Signal Sciences ───────────────────────────────────────────────────────
+  - type: signalsciences
+    corp_name:  mycorp
+    site_name:  mysite
+    api_token:  "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 
-  matrix:
-    enabled: false
+  # ── Gotify ────────────────────────────────────────────────────────────────
+  - type: gotify
+    base_url: "https://gotify.example.com"
+    token:    "XXXXXXXXXXXX"
+
+  # ── Matrix ────────────────────────────────────────────────────────────────
+  - type: matrix
     homeserver: "https://matrix.example.com"
-    access_token: ""
-    room_id: "!roomid:example.com"
+    token:      "syt_XXXXXXXXXXXX"
+    room_id:    "!roomid:example.com"
 
-  zulip:
-    enabled: false
+  # ── Zulip ─────────────────────────────────────────────────────────────────
+  - type: zulip
     base_url: "https://yourorg.zulipchat.com"
-    bot_email: ""
-    api_key: ""
-    stream: "alerts"
-    topic: "vault"
+    bot_email: vaultwatch-bot@yourorg.zulipchat.com
+    api_key:   "XXXXXXXXXXXX"
+    stream:    "ops-alerts"
+    topic:     "vault expiry"
 
-  pushover:
-    enabled: false
-    app_token: ""
-    user_key: ""
+  # ── Pushover ──────────────────────────────────────────────────────────────
+  - type: pushover
+    app_token: "XXXXXXXXXXXX"
+    user_key:  "XXXXXXXXXXXX"
 
-  lark:
-    enabled: false
-    webhook_url: ""
+  # ── Lark / Feishu ─────────────────────────────────────────────────────────
+  - type: lark
+    webhook_url: "https://open.feishu.cn/open-apis/bot/v2/hook/XXXX"
 
-  pagertree:
-    enabled: false
-    webhook_url: ""
+  # ── PagerTree ─────────────────────────────────────────────────────────────
+  - type: pagertree
+    webhook_url: "https://pagertree.com/api/v3/signal/XXXX"
 
-  linear:
-    enabled: false
-    api_key: ""
-    team_id: ""
+  # ── Linear ────────────────────────────────────────────────────────────────
+  - type: linear
+    api_key: "lin_api_XXXXXXXXXXXX"
+    team_id: "TEAM-UUID"
 
-  grafana:
-    enabled: false
-    url: "http://grafana.example.com:3000"
-    api_key: ""
+  # ── HTTP GET ──────────────────────────────────────────────────────────────
+  - type: httpget
+    url: "https://healthcheck.example.com/ping/XXXX"
 
-  campfire:
-    enabled: false
-    account_id: ""
-    campfire_id: ""
-    token: ""
+  # ── Grafana ───────────────────────────────────────────────────────────────
+  - type: grafana
+    url:    "https://grafana.example.com/api/annotations"
+    api_key: "glsa_XXXXXXXXXXXX"
 
-  webhook:
-    enabled: false
-    url: ""
-    # Optional extra headers
-    headers: {}
+  # ── Campfire ──────────────────────────────────────────────────────────────
+  - type: campfire
+    account_id:  "yourorg"
+    campfire_id: "123456"
+    token:       "XXXXXXXXXXXX"
 
-  httpget:
-    enabled: false
-    url: ""
+  # ── ntfy ──────────────────────────────────────────────────────────────────
+  - type: ntfy
+    base_url: "https://ntfy.sh"
+    topic:    "vaultwatch"
 
-  sns:
-    enabled: false
-    topic_arn: ""
-    region: "us-east-1"
+  # ── BearyChat ─────────────────────────────────────────────────────────────
+  - type: bearychat
+    webhook_url: "https://hook.bearychat.com/incomingHook/XXXX"
 
-  syslog:
-    enabled: false
-    network: ""       # empty = local unix socket; "tcp" or "udp" for remote
-    address: ""       # e.g. "logs.example.com:514"
-    tag: "vaultwatch"
+  # ── SIGNL4 ────────────────────────────────────────────────────────────────
+  - type: signl4
+    webhook_url: "https://connect.signl4.com/webhook/XXXX"
+
+  # ── Google Cloud Pub/Sub ──────────────────────────────────────────────────
+  - type: googlepubsub
+    project_id: my-gcp-project
+    topic_id:   vaultwatch-alerts
