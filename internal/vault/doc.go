@@ -17,6 +17,13 @@
 //     drops at or below the configured threshold. Implementations should
 //     be non-blocking; long-running work should be dispatched to a goroutine.
 //
+// Error handling:
+//
+// Transient network errors encountered during polling are logged and skipped;
+// Monitor will retry on the next interval rather than terminating. Permanent
+// errors (e.g. invalid token, permission denied) are surfaced via the
+// AlertFunc so callers can decide how to respond.
+//
 // Typical usage:
 //
 //	client, err := vault.NewClient(cfg.VaultAddress, cfg.VaultToken)
