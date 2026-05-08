@@ -74,6 +74,9 @@ func TestExecNotifier_Send_NonZeroExit(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for non-zero exit, got nil")
 	}
+	if !strings.Contains(err.Error(), "exec notifier") {
+		t.Errorf("error message should contain 'exec notifier', got: %v", err)
+	}
 }
 
 func TestExecNotifier_Send_Timeout(t *testing.T) {
