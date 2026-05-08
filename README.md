@@ -50,6 +50,7 @@ vaultwatch list --threshold 30d --output table
 | `--alert` | Alert backend (`slack`, `email`, `webhook`) | `stdout` |
 | `--interval` | Polling interval | `1h` |
 | `--output` | Output format (`table`, `json`) | `table` |
+| `--config` | Path to config file | `./vaultwatch.yaml` |
 
 ---
 
@@ -64,6 +65,15 @@ alert:
   type: slack
   webhook_url: https://hooks.slack.com/services/...
 ```
+
+Environment variables take precedence over config file values. The following variables are supported:
+
+| Variable | Description |
+|----------|-------------|
+| `VAULT_ADDR` | Vault server address |
+| `VAULT_TOKEN` | Vault authentication token |
+| `VAULTWATCH_THRESHOLD` | Override alert threshold |
+| `VAULTWATCH_ALERT` | Override alert backend |
 
 ---
 
