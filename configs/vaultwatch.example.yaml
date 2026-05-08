@@ -1,214 +1,236 @@
-# vaultwatch example configuration
-# Copy to vaultwatch.yaml and adjust to your environment.
+# VaultWatch example configuration
+# Copy to vaultwatch.yaml and adjust values for your environment.
 
 vault:
-  # Address of the Vault server (required).
-  address: "https://vault.example.com"
+  # Address of the Vault server (required)
+  address: "https://vault.example.com:8200"
 
-  # Vault token used for authentication.
-  # Prefer VAULT_TOKEN env var in production.
-  token: "s.XXXXXXXXXXXX"
+  # Vault token (can also be set via VAULT_TOKEN env var)
+  token: "${VAULT_TOKEN}"
 
-  # TLS settings (optional).
+  # Optional: path to CA certificate for TLS verification
+  # ca_cert: "/etc/ssl/certs/vault-ca.pem"
+
+  # Optional: skip TLS verification (not recommended for production)
   # tls_skip_verify: false
-  # ca_cert: /etc/ssl/vault-ca.pem
 
-# Secrets to monitor (at least one path required).
+# Secrets to monitor
 secrets:
-  - path: "secret/data/myapp/database"
-    # Override the global warning/critical thresholds for this secret.
-    # warn_before:     72h
-    # critical_before: 24h
+  - path: "secret/data/database/prod"
+    # Field inside the secret that holds the expiry timestamp (RFC3339)
+    expiry_field: "expires_at"
 
-  - path: "secret/data/myapp/api-key"
+  - path: "secret/data/api/stripe"
+    expiry_field: "rotation_deadline"
 
-  - path: "pki/cert/web"
+  - path: "secret/data/tls/cert"
+    expiry_field: "not_after"
 
-# How often VaultWatch polls Vault for secret metadata.
-# Accepts Go duration strings: 30s, 5m, 1h, etc.
-check_interval: 5m
+# How often to poll Vault for secret metadata
+interval: "5m"
 
-# Alert thresholds (global defaults).
-warn_before:     72h
-critical_before: 24h
+# Alert thresholds — alerts fire when time-to-expiry falls below these values
+thresholds:
+  warning:  "72h"
+  critical: "24h"
 
+# Alert history deduplication — suppress duplicate alerts for this long
+history_ttl: "6h"
+
+# Notifiers — one or more destinations for alerts
 alerts:
-  # ── stdout ────────────────────────────────────────────────────────────────
+  # ── stdout (always available, useful for debugging) ──────────────────────
   - type: stdout
 
-  # ── email ─────────────────────────────────────────────────────────────────
-  - type: email
-    smtp_host: smtp.example.com
-    smtp_port: 587
-    username:  alerts@example.com
-    password:  secret
-    from:      alerts@example.com
-    to:
-      - oncall@example.com
+  # ── file ─────────────────────────────────────────────────────────────────
+  # - type: file
+  #   path: "/var/log/vaultwatch/alerts.log"
+
+  # ── email ────────────────────────────────────────────────────────────────
+  # - type: email
+  #   smtp_host: "smtp.example.com"
+  #   smtp_port: 587
+  #   from: "vaultwatch@example.com"
+  #   to: ["oncall@example.com"]
+  #   username: "${SMTP_USER}"
+  #   password: "${SMTP_PASS}"
 
   # ── Slack ─────────────────────────────────────────────────────────────────
-  - type: slack
-    webhook_url: "https://hooks.slack.com/services/T000/B000/XXXX"
-
-  # ── generic webhook ───────────────────────────────────────────────────────
-  - type: webhook
-    url: "https://ingest.example.com/vaultwatch"
+  # - type: slack
+  #   webhook_url: "${SLACK_WEBHOOK_URL}"
 
   # ── PagerDuty ─────────────────────────────────────────────────────────────
-  - type: pagerduty
-    integration_key: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  # - type: pagerduty
+  #   integration_key: "${PAGERDUTY_KEY}"
 
   # ── OpsGenie ──────────────────────────────────────────────────────────────
-  - type: opsgenie
-    api_key: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+  # - type: opsgenie
+  #   api_key: "${OPSGENIE_API_KEY}"
+  #   region: "us"   # or "eu"
+
+  # ── VictorOps / Splunk On-Call ────────────────────────────────────────────
+  # - type: victorops
+  #   webhook_url: "${VICTOROPS_WEBHOOK_URL}"
 
   # ── Microsoft Teams ───────────────────────────────────────────────────────
-  - type: teams
-    webhook_url: "https://outlook.office.com/webhook/..."
+  # - type: teams
+  #   webhook_url: "${TEAMS_WEBHOOK_URL}"
 
   # ── Discord ───────────────────────────────────────────────────────────────
-  - type: discord
-    webhook_url: "https://discord.com/api/webhooks/000/XXXX"
+  # - type: discord
+  #   webhook_url: "${DISCORD_WEBHOOK_URL}"
 
   # ── Telegram ──────────────────────────────────────────────────────────────
-  - type: telegram
-    bot_token: "123456:ABC-DEF"
-    chat_id:   "-100123456789"
+  # - type: telegram
+  #   bot_token: "${TELEGRAM_BOT_TOKEN}"
+  #   chat_id: "${TELEGRAM_CHAT_ID}"
 
   # ── AWS SNS ───────────────────────────────────────────────────────────────
-  - type: sns
-    topic_arn: "arn:aws:sns:us-east-1:123456789012:vaultwatch"
-    region:    "us-east-1"
+  # - type: sns
+  #   topic_arn: "arn:aws:sns:us-east-1:123456789012:vaultwatch"
+  #   region: "us-east-1"
 
-  # ── VictorOps ─────────────────────────────────────────────────────────────
-  - type: victorops
-    webhook_url: "https://alert.victorops.com/integrations/generic/..."
-
-  # ── Syslog ────────────────────────────────────────────────────────────────
-  - type: syslog
-    network:  udp
-    address:  "localhost:514"
-    tag:      vaultwatch
-
-  # ── Mattermost ────────────────────────────────────────────────────────────
-  - type: mattermost
-    webhook_url: "https://mattermost.example.com/hooks/XXXX"
-
-  # ── Google Chat ───────────────────────────────────────────────────────────
-  - type: googlechat
-    webhook_url: "https://chat.googleapis.com/v1/spaces/.../messages?key=..."
-
-  # ── Datadog ───────────────────────────────────────────────────────────────
-  - type: datadog
-    api_key: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-
-  # ── Splunk HEC ────────────────────────────────────────────────────────────
-  - type: splunk
-    hec_url:   "https://splunk.example.com:8088/services/collector"
-    hec_token: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-
-  # ── New Relic ─────────────────────────────────────────────────────────────
-  - type: newrelic
-    account_id: "1234567"
-    api_key:    "NRAK-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
-
-  # ── Zenduty ───────────────────────────────────────────────────────────────
-  - type: zenduty
-    api_key: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-
-  # ── Alertmanager ──────────────────────────────────────────────────────────
-  - type: alertmanager
-    endpoint: "http://alertmanager.example.com:9093"
-
-  # ── Jira ──────────────────────────────────────────────────────────────────
-  - type: jira
-    base_url:    "https://yourorg.atlassian.net"
-    username:    jira-bot@example.com
-    api_token:   "ATATT3xFfGF0..."
-    project_key: OPS
-
-  # ── ServiceNow ────────────────────────────────────────────────────────────
-  - type: servicenow
-    base_url:  "https://yourinstance.service-now.com"
-    username:  vaultwatch
-    password:  secret
-
-  # ── Rocket.Chat ───────────────────────────────────────────────────────────
-  - type: rocketchat
-    webhook_url: "https://rocketchat.example.com/hooks/XXXX"
-
-  # ── Signal Sciences ───────────────────────────────────────────────────────
-  - type: signalsciences
-    corp_name:  mycorp
-    site_name:  mysite
-    api_token:  "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-
-  # ── Gotify ────────────────────────────────────────────────────────────────
-  - type: gotify
-    base_url: "https://gotify.example.com"
-    token:    "XXXXXXXXXXXX"
-
-  # ── Matrix ────────────────────────────────────────────────────────────────
-  - type: matrix
-    homeserver: "https://matrix.example.com"
-    token:      "syt_XXXXXXXXXXXX"
-    room_id:    "!roomid:example.com"
-
-  # ── Zulip ─────────────────────────────────────────────────────────────────
-  - type: zulip
-    base_url: "https://yourorg.zulipchat.com"
-    bot_email: vaultwatch-bot@yourorg.zulipchat.com
-    api_key:   "XXXXXXXXXXXX"
-    stream:    "ops-alerts"
-    topic:     "vault expiry"
-
-  # ── Pushover ──────────────────────────────────────────────────────────────
-  - type: pushover
-    app_token: "XXXXXXXXXXXX"
-    user_key:  "XXXXXXXXXXXX"
-
-  # ── Lark / Feishu ─────────────────────────────────────────────────────────
-  - type: lark
-    webhook_url: "https://open.feishu.cn/open-apis/bot/v2/hook/XXXX"
-
-  # ── PagerTree ─────────────────────────────────────────────────────────────
-  - type: pagertree
-    webhook_url: "https://pagertree.com/api/v3/signal/XXXX"
-
-  # ── Linear ────────────────────────────────────────────────────────────────
-  - type: linear
-    api_key: "lin_api_XXXXXXXXXXXX"
-    team_id: "TEAM-UUID"
+  # ── Webhook (generic HTTP POST) ───────────────────────────────────────────
+  # - type: webhook
+  #   url: "https://hooks.example.com/vaultwatch"
 
   # ── HTTP GET ──────────────────────────────────────────────────────────────
-  - type: httpget
-    url: "https://healthcheck.example.com/ping/XXXX"
+  # - type: httpget
+  #   url: "https://healthcheck.example.com/ping/vaultwatch?msg={{.Message}}"
 
-  # ── Grafana ───────────────────────────────────────────────────────────────
-  - type: grafana
-    url:    "https://grafana.example.com/api/annotations"
-    api_key: "glsa_XXXXXXXXXXXX"
+  # ── Syslog ────────────────────────────────────────────────────────────────
+  # - type: syslog
+  #   network: "udp"   # tcp, udp, or empty for local
+  #   address: "localhost:514"
+  #   tag: "vaultwatch"
 
-  # ── Campfire ──────────────────────────────────────────────────────────────
-  - type: campfire
-    account_id:  "yourorg"
-    campfire_id: "123456"
-    token:       "XXXXXXXXXXXX"
+  # ── Exec (run an arbitrary command) ──────────────────────────────────────
+  # - type: exec
+  #   command: "/usr/local/bin/notify-vault.sh"
+  #   timeout: "10s"
 
-  # ── ntfy ──────────────────────────────────────────────────────────────────
-  - type: ntfy
-    base_url: "https://ntfy.sh"
-    topic:    "vaultwatch"
+  # ── Mattermost ────────────────────────────────────────────────────────────
+  # - type: mattermost
+  #   webhook_url: "${MATTERMOST_WEBHOOK_URL}"
 
-  # ── BearyChat ─────────────────────────────────────────────────────────────
-  - type: bearychat
-    webhook_url: "https://hook.bearychat.com/incomingHook/XXXX"
+  # ── Google Chat ───────────────────────────────────────────────────────────
+  # - type: googlechat
+  #   webhook_url: "${GOOGLECHAT_WEBHOOK_URL}"
 
-  # ── SIGNL4 ────────────────────────────────────────────────────────────────
-  - type: signl4
-    webhook_url: "https://connect.signl4.com/webhook/XXXX"
+  # ── Google Pub/Sub ────────────────────────────────────────────────────────
+  # - type: googlepubsub
+  #   project_id: "my-gcp-project"
+  #   topic_id: "vaultwatch-alerts"
 
-  # ── Google Cloud Pub/Sub ──────────────────────────────────────────────────
-  - type: googlepubsub
-    project_id: my-gcp-project
-    topic_id:   vaultwatch-alerts
+  # ── Datadog ───────────────────────────────────────────────────────────────
+  # - type: datadog
+  #   api_key: "${DATADOG_API_KEY}"
+
+  # ── Splunk HEC ────────────────────────────────────────────────────────────
+  # - type: splunk
+  #   url: "https://splunk.example.com:8088"
+  #   token: "${SPLUNK_HEC_TOKEN}"
+
+  # ── New Relic ─────────────────────────────────────────────────────────────
+  # - type: newrelic
+  #   account_id: "${NEWRELIC_ACCOUNT_ID}"
+  #   api_key: "${NEWRELIC_API_KEY}"
+
+  # ── Zenduty ───────────────────────────────────────────────────────────────
+  # - type: zenduty
+  #   api_key: "${ZENDUTY_API_KEY}"
+
+  # ── Alertmanager ─────────────────────────────────────────────────────────
+  # - type: alertmanager
+  #   endpoint: "http://alertmanager.example.com:9093"
+
+  # ── Jira ─────────────────────────────────────────────────────────────────
+  # - type: jira
+  #   base_url: "https://yourorg.atlassian.net"
+  #   username: "${JIRA_USER}"
+  #   api_token: "${JIRA_TOKEN}"
+  #   project_key: "OPS"
+
+  # ── ServiceNow ───────────────────────────────────────────────────────────
+  # - type: servicenow
+  #   base_url: "https://yourinstance.service-now.com"
+  #   username: "${SNOW_USER}"
+  #   password: "${SNOW_PASS}"
+
+  # ── Rocket.Chat ──────────────────────────────────────────────────────────
+  # - type: rocketchat
+  #   webhook_url: "${ROCKETCHAT_WEBHOOK_URL}"
+
+  # ── Signal Sciences (Fastly) ─────────────────────────────────────────────
+  # - type: signalsciences
+  #   corp_name: "mycorp"
+  #   site_name: "mysite"
+  #   token: "${SIGSCI_TOKEN}"
+
+  # ── Gotify ───────────────────────────────────────────────────────────────
+  # - type: gotify
+  #   base_url: "https://gotify.example.com"
+  #   token: "${GOTIFY_TOKEN}"
+
+  # ── Matrix ───────────────────────────────────────────────────────────────
+  # - type: matrix
+  #   homeserver: "https://matrix.example.com"
+  #   token: "${MATRIX_TOKEN}"
+  #   room_id: "!roomid:example.com"
+
+  # ── Zulip ────────────────────────────────────────────────────────────────
+  # - type: zulip
+  #   base_url: "https://yourorg.zulipchat.com"
+  #   bot_email: "vaultwatch-bot@yourorg.zulipchat.com"
+  #   api_key: "${ZULIP_API_KEY}"
+  #   stream: "alerts"
+  #   topic: "vault"
+
+  # ── Pushover ─────────────────────────────────────────────────────────────
+  # - type: pushover
+  #   app_token: "${PUSHOVER_APP_TOKEN}"
+  #   user_key: "${PUSHOVER_USER_KEY}"
+
+  # ── Lark / Feishu ────────────────────────────────────────────────────────
+  # - type: lark
+  #   webhook_url: "${LARK_WEBHOOK_URL}"
+
+  # ── PagerTree ────────────────────────────────────────────────────────────
+  # - type: pagertree
+  #   webhook_url: "${PAGERTREE_WEBHOOK_URL}"
+
+  # ── Linear ───────────────────────────────────────────────────────────────
+  # - type: linear
+  #   api_key: "${LINEAR_API_KEY}"
+  #   team_id: "${LINEAR_TEAM_ID}"
+
+  # ── BearyChat ────────────────────────────────────────────────────────────
+  # - type: bearychat
+  #   webhook_url: "${BEARYCHAT_WEBHOOK_URL}"
+
+  # ── SIGNL4 ───────────────────────────────────────────────────────────────
+  # - type: signl4
+  #   webhook_url: "${SIGNL4_WEBHOOK_URL}"
+
+  # ── Ntfy ─────────────────────────────────────────────────────────────────
+  # - type: ntfy
+  #   base_url: "https://ntfy.sh"
+  #   topic: "vaultwatch"
+
+  # ── Grafana Annotations ──────────────────────────────────────────────────
+  # - type: grafana
+  #   url: "https://grafana.example.com"
+  #   api_key: "${GRAFANA_API_KEY}"
+  #   dashboard_id: 42
+
+  # ── Campfire ─────────────────────────────────────────────────────────────
+  # - type: campfire
+  #   account_id: "myaccount"
+  #   campfire_id: "123456"
+  #   token: "${CAMPFIRE_TOKEN}"
+
+  # ── Atlassian Statuspage ─────────────────────────────────────────────────
+  # - type: statuspage
+  #   page_id: "${STATUSPAGE_PAGE_ID}"
+  #   component_id: "${STATUSPAGE_COMPONENT_ID}"
+  #   api_key: "${STATUSPAGE_API_KEY}"
