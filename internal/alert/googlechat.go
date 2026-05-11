@@ -13,7 +13,8 @@ type GoogleChatNotifier struct {
 	client     *http.Client
 }
 
-// NewGoogleChatNotifier returns a GoogleChatNotifier or an error if webhookURL is empty.
+// NewGoogleChatNotifier creates a new GoogleChatNotifier.
+// webhookURL must be a valid Google Chat incoming webhook URL.
 func NewGoogleChatNotifier(webhookURL string) (*GoogleChatNotifier, error) {
 	if webhookURL == "" {
 		return nil, fmt.Errorf("googlechat: webhook URL must not be empty")
@@ -24,14 +25,11 @@ func NewGoogleChatNotifier(webhookURL string) (*GoogleChatNotifier, error) {
 	}, nil
 }
 
-type googleChatPayload struct {
-	Text string `json:"text"`
-}
-
 // Send delivers the alert to the configured Google Chat webhook.
 func (n *GoogleChatNotifier) Send(a Alert) error {
-	payload := googleChatPayload{
-		Text: fmt.Sprintf("*[%s] VaultWatch Alert*\n%s", a.Level, a.String()),
+	payload := map[string]string{
+		"text": fmt.Sprintf("*[%s] VaultWatch Alert*\nSecret: %s\nExpires in: %s\n%s",
+			a.Level, a.SecretPath, a.TimeLeft.Round(0), a.Message),
 	}
 	body, err := json.Marshal(payload)
 	if err != nil {
