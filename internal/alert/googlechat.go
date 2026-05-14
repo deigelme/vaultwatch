@@ -17,7 +17,7 @@ type GoogleChatNotifier struct {
 // webhookURL must be a valid Google Chat incoming webhook URL.
 func NewGoogleChatNotifier(webhookURL string) (*GoogleChatNotifier, error) {
 	if webhookURL == "" {
-		return nil, fmt.Errorf("googlechat: webhook URL must not be empty")
+		return nil, fmt.Errorf("googlechat: webhookURL must not be empty")
 	}
 	return &GoogleChatNotifier{
 		webhookURL: webhookURL,
@@ -25,19 +25,18 @@ func NewGoogleChatNotifier(webhookURL string) (*GoogleChatNotifier, error) {
 	}, nil
 }
 
-// Send delivers the alert to the configured Google Chat webhook.
+// Send delivers an Alert to Google Chat.
 func (n *GoogleChatNotifier) Send(a Alert) error {
 	payload := map[string]string{
-		"text": fmt.Sprintf("*[%s] VaultWatch Alert*\nSecret: %s\nExpires in: %s\n%s",
-			a.Level, a.SecretPath, a.TimeLeft.Round(0), a.Message),
+		"text": fmt.Sprintf("*[%s] VaultWatch Alert*\n%s", a.Level, a.String()),
 	}
-	body, err := json.Marshal(payload)
+	b, err := json.Marshal(payload)
 	if err != nil {
 		return fmt.Errorf("googlechat: marshal payload: %w", err)
 	}
-	resp, err := n.client.Post(n.webhookURL, "application/json", bytes.NewReader(body))
+	resp, err := n.client.Post(n.webhookURL, "application/json", bytes.NewReader(b))
 	if err != nil {
-		return fmt.Errorf("googlechat: send request: %w", err)
+		return fmt.Errorf("googlechat: post: %w", err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {

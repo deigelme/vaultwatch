@@ -1,20 +1,22 @@
-// Package alert provides notifier implementations for VaultWatch alerts.
+// Package alert provides notifier implementations for VaultWatch.
 //
 // # Google Chat Notifier
 //
-// GoogleChatNotifier delivers alerts to a Google Chat space via an
-// incoming webhook URL. To obtain a webhook URL, open your Google Chat
-// space, click "Manage webhooks", and create a new webhook.
+// GoogleChatNotifier delivers secret-expiration alerts to a Google Chat space
+// via an incoming webhook URL.
 //
-// Configuration example (vaultwatch.yaml):
+// # Configuration
 //
-//	alerts:
-//	  - type: googlechat
+// Obtain a webhook URL from the Google Chat space settings under
+// "Apps & Integrations" → "Manage webhooks".
+//
+// Example YAML:
+//
+//	notifiers:
+//	  googlechat:
 //	    webhook_url: "https://chat.googleapis.com/v1/spaces/.../messages?key=...&token=..."
 //
-// Each alert is delivered as a plain-text card message that includes the
-// alert level, secret path, time remaining, and a human-readable summary.
+// # Alert format
 //
-// The notifier returns an error if the webhook URL is empty or if Google
-// Chat responds with a non-200 HTTP status code.
+// Messages are sent as plain text with the alert level and secret path.
 package alert

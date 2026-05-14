@@ -10,12 +10,14 @@ import (
 	"time"
 )
 
-func startFakeGoogleChat(t *testing.T, statusCode int, fn func(body []byte)) *httptest.Server {
+func startFakeGoogleChat(t *testing.T, statusCode int, fn func(body map[string]string)) *httptest.Server {
 	t.Helper()
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		body, _ := io.ReadAll(r.Body)
+		b, _ := io.ReadAll(r.Body)
+		var payload map[string]string
+		_ = json.Unmarshal(b, &payload)
 		if fn != nil {
-			fn(body)
+			fn(payload)
 		}
 		w.WriteHeader(statusCode)
 	}))
@@ -29,9 +31,9 @@ func TestNewGoogleChatNotifier_EmptyURL(t *testing.T) {
 }
 
 func TestGoogleChatNotifier_Send_Success(t *testing.T) {
-	var received []byte
-	srv := startFakeGoogleChat(t, http.StatusOK, func(body []byte) {
-		received = body
+	var got map[string]string
+	srv := startFakeGoogleChat(t, http.StatusOK, func(body map[string]string) {
+		got = body
 	})
 	defer srv.Close()
 
@@ -41,26 +43,19 @@ func TestGoogleChatNotifier_Send_Success(t *testing.T) {
 	}
 
 	a := Alert{
-		Level:      LevelWarning,
-		SecretPath: "secret/my-app/db",
-		Expiry:     time.Now().Add(48 * time.Hour),
-		TimeLeft:   48 * time.Hour,
-		Message:    "expires soon",
+		Level:     LevelWarning,
+		Path:      "secret/my-app/db",
+		ExpiresAt: time.Now().Add(48 * time.Hour),
+		TimeLeft:  48 * time.Hour,
 	}
-
 	if err := n.Send(a); err != nil {
 		t.Fatalf("Send returned error: %v", err)
 	}
-
-	var payload map[string]string
-	if err := json.Unmarshal(received, &payload); err != nil {
-		t.Fatalf("invalid JSON payload: %v", err)
+	if !strings.Contains(got["text"], "VaultWatch Alert") {
+		t.Errorf("expected alert text, got: %q", got["text"])
 	}
-	if !strings.Contains(payload["text"], "secret/my-app/db") {
-		t.Errorf("payload text missing secret path: %s", payload["text"])
-	}
-	if !strings.Contains(payload["text"], "WARNING") {
-		t.Errorf("payload text missing level: %s", payload["text"])
+	if !strings.Contains(got["text"], "secret/my-app/db") {
+		t.Errorf("expected path in text, got: %q", got["text"])
 	}
 }
 
@@ -68,16 +63,18 @@ func TestGoogleChatNotifier_Send_NonOKStatus(t *testing.T) {
 	srv := startFakeGoogleChat(t, http.StatusInternalServerError, nil)
 	defer srv.Close()
 
-	n, _ := NewGoogleChatNotifier(srv.URL)
-	a := Alert{
-		Level:      LevelCritical,
-		SecretPath: "secret/creds",
-		Expiry:     time.Now().Add(1 * time.Hour),
-		TimeLeft:   1 * time.Hour,
-		Message:    "critical expiry",
+	n, err := NewGoogleChatNotifier(srv.URL)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
 
+	a := Alert{
+		Level:     LevelCritical,
+		Path:      "secret/prod/cert",
+		ExpiresAt: time.Now().Add(2 * time.Hour),
+		TimeLeft:  2 * time.Hour,
+	}
 	if err := n.Send(a); err == nil {
-		t.Fatal("expected error for non-200 status")
+		t.Fatal("expected error for non-OK status")
 	}
 }

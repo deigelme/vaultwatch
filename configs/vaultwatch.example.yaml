@@ -1,236 +1,293 @@
 # VaultWatch example configuration
-# Copy to vaultwatch.yaml and adjust values for your environment.
+# Copy this file to vaultwatch.yaml and adjust to your environment.
 
+# vault section configures the HashiCorp Vault connection.
 vault:
-  # Address of the Vault server (required)
-  address: "https://vault.example.com:8200"
+  # address is the URL of your Vault server.
+  address: "https://vault.example.com"
 
-  # Vault token (can also be set via VAULT_TOKEN env var)
-  token: "${VAULT_TOKEN}"
+  # token is a Vault token with read access to the monitored paths.
+  # Prefer setting VAULT_TOKEN in the environment instead.
+  token: ""
 
-  # Optional: path to CA certificate for TLS verification
-  # ca_cert: "/etc/ssl/certs/vault-ca.pem"
+  # tls_skip_verify disables TLS certificate verification (not recommended for production).
+  tls_skip_verify: false
 
-  # Optional: skip TLS verification (not recommended for production)
-  # tls_skip_verify: false
-
-# Secrets to monitor
+# secrets lists the Vault secret paths to monitor.
 secrets:
-  - path: "secret/data/database/prod"
-    # Field inside the secret that holds the expiry timestamp (RFC3339)
-    expiry_field: "expires_at"
+  - path: "secret/data/myapp/db"
+  - path: "secret/data/myapp/api-key"
+  - path: "pki/cert/my-cert"
 
-  - path: "secret/data/api/stripe"
-    expiry_field: "rotation_deadline"
-
-  - path: "secret/data/tls/cert"
-    expiry_field: "not_after"
-
-# How often to poll Vault for secret metadata
+# interval is how often VaultWatch polls Vault for secret metadata.
+# Accepts Go duration strings: e.g. "5m", "1h", "30s".
 interval: "5m"
 
-# Alert thresholds — alerts fire when time-to-expiry falls below these values
+# thresholds define when alerts are fired based on time remaining until expiry.
 thresholds:
-  warning:  "72h"
-  critical: "24h"
+  warning:  "72h"   # 3 days
+  critical: "24h"   # 1 day
 
-# Alert history deduplication — suppress duplicate alerts for this long
-history_ttl: "6h"
+# notifiers configures one or more alert destinations.
+# All enabled notifiers receive every alert.
+notifiers:
 
-# Notifiers — one or more destinations for alerts
-alerts:
-  # ── stdout (always available, useful for debugging) ──────────────────────
-  - type: stdout
+  # stdout prints alerts to standard output (always useful for debugging).
+  stdout:
+    enabled: true
 
-  # ── file ─────────────────────────────────────────────────────────────────
-  # - type: file
-  #   path: "/var/log/vaultwatch/alerts.log"
+  # email sends alerts via SMTP.
+  email:
+    enabled: false
+    smtp_host: "smtp.example.com"
+    smtp_port: 587
+    from: "vaultwatch@example.com"
+    to:
+      - "ops@example.com"
+    username: ""
+    password: ""
 
-  # ── email ────────────────────────────────────────────────────────────────
-  # - type: email
-  #   smtp_host: "smtp.example.com"
-  #   smtp_port: 587
-  #   from: "vaultwatch@example.com"
-  #   to: ["oncall@example.com"]
-  #   username: "${SMTP_USER}"
-  #   password: "${SMTP_PASS}"
+  # slack sends alerts to a Slack channel via incoming webhook.
+  slack:
+    enabled: false
+    webhook_url: "https://hooks.slack.com/services/XXX/YYY/ZZZ"
 
-  # ── Slack ─────────────────────────────────────────────────────────────────
-  # - type: slack
-  #   webhook_url: "${SLACK_WEBHOOK_URL}"
+  # webhook sends a JSON POST to an arbitrary HTTP endpoint.
+  webhook:
+    enabled: false
+    url: "https://example.com/vaultwatch-alert"
 
-  # ── PagerDuty ─────────────────────────────────────────────────────────────
-  # - type: pagerduty
-  #   integration_key: "${PAGERDUTY_KEY}"
+  # pagerduty sends alerts to PagerDuty via the Events API v2.
+  pagerduty:
+    enabled: false
+    integration_key: "your-pagerduty-integration-key"
 
-  # ── OpsGenie ──────────────────────────────────────────────────────────────
-  # - type: opsgenie
-  #   api_key: "${OPSGENIE_API_KEY}"
-  #   region: "us"   # or "eu"
+  # opsgenie sends alerts to OpsGenie.
+  opsgenie:
+    enabled: false
+    api_key: "your-opsgenie-api-key"
 
-  # ── VictorOps / Splunk On-Call ────────────────────────────────────────────
-  # - type: victorops
-  #   webhook_url: "${VICTOROPS_WEBHOOK_URL}"
+  # teams sends alerts to Microsoft Teams via incoming webhook.
+  teams:
+    enabled: false
+    webhook_url: "https://outlook.office.com/webhook/..."
 
-  # ── Microsoft Teams ───────────────────────────────────────────────────────
-  # - type: teams
-  #   webhook_url: "${TEAMS_WEBHOOK_URL}"
+  # discord sends alerts to a Discord channel via webhook.
+  discord:
+    enabled: false
+    webhook_url: "https://discord.com/api/webhooks/..."
 
-  # ── Discord ───────────────────────────────────────────────────────────────
-  # - type: discord
-  #   webhook_url: "${DISCORD_WEBHOOK_URL}"
+  # telegram sends alerts via the Telegram Bot API.
+  telegram:
+    enabled: false
+    bot_token: "your-telegram-bot-token"
+    chat_id: "your-chat-id"
 
-  # ── Telegram ──────────────────────────────────────────────────────────────
-  # - type: telegram
-  #   bot_token: "${TELEGRAM_BOT_TOKEN}"
-  #   chat_id: "${TELEGRAM_CHAT_ID}"
+  # sns publishes alerts to an AWS SNS topic.
+  sns:
+    enabled: false
+    topic_arn: "arn:aws:sns:us-east-1:123456789012:vaultwatch"
+    region: "us-east-1"
 
-  # ── AWS SNS ───────────────────────────────────────────────────────────────
-  # - type: sns
-  #   topic_arn: "arn:aws:sns:us-east-1:123456789012:vaultwatch"
-  #   region: "us-east-1"
+  # victorops sends alerts to VictorOps (Splunk On-Call).
+  victorops:
+    enabled: false
+    webhook_url: "https://alert.victorops.com/integrations/..."
 
-  # ── Webhook (generic HTTP POST) ───────────────────────────────────────────
-  # - type: webhook
-  #   url: "https://hooks.example.com/vaultwatch"
+  # syslog writes alerts to the local syslog daemon.
+  syslog:
+    enabled: false
+    tag: "vaultwatch"
 
-  # ── HTTP GET ──────────────────────────────────────────────────────────────
-  # - type: httpget
-  #   url: "https://healthcheck.example.com/ping/vaultwatch?msg={{.Message}}"
+  # mattermost sends alerts to a Mattermost channel via incoming webhook.
+  mattermost:
+    enabled: false
+    webhook_url: "https://mattermost.example.com/hooks/..."
 
-  # ── Syslog ────────────────────────────────────────────────────────────────
-  # - type: syslog
-  #   network: "udp"   # tcp, udp, or empty for local
-  #   address: "localhost:514"
-  #   tag: "vaultwatch"
+  # googlechat sends alerts to a Google Chat space via incoming webhook.
+  googlechat:
+    enabled: false
+    webhook_url: "https://chat.googleapis.com/v1/spaces/.../messages?key=...&token=..."
 
-  # ── Exec (run an arbitrary command) ──────────────────────────────────────
-  # - type: exec
-  #   command: "/usr/local/bin/notify-vault.sh"
-  #   timeout: "10s"
+  # datadog sends events to Datadog.
+  datadog:
+    enabled: false
+    api_key: "your-datadog-api-key"
 
-  # ── Mattermost ────────────────────────────────────────────────────────────
-  # - type: mattermost
-  #   webhook_url: "${MATTERMOST_WEBHOOK_URL}"
+  # splunk sends alerts to Splunk HTTP Event Collector.
+  splunk:
+    enabled: false
+    url: "https://splunk.example.com:8088/services/collector"
+    token: "your-hec-token"
 
-  # ── Google Chat ───────────────────────────────────────────────────────────
-  # - type: googlechat
-  #   webhook_url: "${GOOGLECHAT_WEBHOOK_URL}"
+  # newrelic sends custom events to New Relic.
+  newrelic:
+    enabled: false
+    account_id: "your-account-id"
+    api_key: "your-insert-api-key"
 
-  # ── Google Pub/Sub ────────────────────────────────────────────────────────
-  # - type: googlepubsub
-  #   project_id: "my-gcp-project"
-  #   topic_id: "vaultwatch-alerts"
+  # zenduty sends alerts to Zenduty.
+  zenduty:
+    enabled: false
+    api_key: "your-zenduty-api-key"
 
-  # ── Datadog ───────────────────────────────────────────────────────────────
-  # - type: datadog
-  #   api_key: "${DATADOG_API_KEY}"
+  # alertmanager pushes alerts to a Prometheus Alertmanager instance.
+  alertmanager:
+    enabled: false
+    endpoint: "http://alertmanager.example.com:9093"
 
-  # ── Splunk HEC ────────────────────────────────────────────────────────────
-  # - type: splunk
-  #   url: "https://splunk.example.com:8088"
-  #   token: "${SPLUNK_HEC_TOKEN}"
+  # jira creates Jira issues for expiring secrets.
+  jira:
+    enabled: false
+    base_url: "https://yourorg.atlassian.net"
+    username: "bot@example.com"
+    api_token: "your-jira-api-token"
+    project_key: "OPS"
 
-  # ── New Relic ─────────────────────────────────────────────────────────────
-  # - type: newrelic
-  #   account_id: "${NEWRELIC_ACCOUNT_ID}"
-  #   api_key: "${NEWRELIC_API_KEY}"
+  # servicenow creates ServiceNow incidents.
+  servicenow:
+    enabled: false
+    base_url: "https://yourinstance.service-now.com"
+    username: "admin"
+    password: "your-password"
 
-  # ── Zenduty ───────────────────────────────────────────────────────────────
-  # - type: zenduty
-  #   api_key: "${ZENDUTY_API_KEY}"
+  # rocketchat sends alerts to a Rocket.Chat channel via webhook.
+  rocketchat:
+    enabled: false
+    webhook_url: "https://rocketchat.example.com/hooks/..."
 
-  # ── Alertmanager ─────────────────────────────────────────────────────────
-  # - type: alertmanager
-  #   endpoint: "http://alertmanager.example.com:9093"
+  # signalsciences sends custom events to Signal Sciences (Fastly Next-Gen WAF).
+  signalsciences:
+    enabled: false
+    corp_name: "your-corp"
+    site_name: "your-site"
+    api_token: "your-api-token"
 
-  # ── Jira ─────────────────────────────────────────────────────────────────
-  # - type: jira
-  #   base_url: "https://yourorg.atlassian.net"
-  #   username: "${JIRA_USER}"
-  #   api_token: "${JIRA_TOKEN}"
-  #   project_key: "OPS"
+  # gotify sends push notifications via a self-hosted Gotify server.
+  gotify:
+    enabled: false
+    base_url: "https://gotify.example.com"
+    token: "your-app-token"
 
-  # ── ServiceNow ───────────────────────────────────────────────────────────
-  # - type: servicenow
-  #   base_url: "https://yourinstance.service-now.com"
-  #   username: "${SNOW_USER}"
-  #   password: "${SNOW_PASS}"
+  # matrix sends alerts to a Matrix room.
+  matrix:
+    enabled: false
+    homeserver: "https://matrix.example.com"
+    access_token: "your-access-token"
+    room_id: "!roomid:example.com"
 
-  # ── Rocket.Chat ──────────────────────────────────────────────────────────
-  # - type: rocketchat
-  #   webhook_url: "${ROCKETCHAT_WEBHOOK_URL}"
+  # zulip sends alerts to a Zulip stream.
+  zulip:
+    enabled: false
+    base_url: "https://yourorg.zulipchat.com"
+    bot_email: "vaultwatch-bot@yourorg.zulipchat.com"
+    api_key: "your-zulip-api-key"
+    stream: "ops-alerts"
+    topic: "vault expiry"
 
-  # ── Signal Sciences (Fastly) ─────────────────────────────────────────────
-  # - type: signalsciences
-  #   corp_name: "mycorp"
-  #   site_name: "mysite"
-  #   token: "${SIGSCI_TOKEN}"
+  # pushover sends push notifications via Pushover.
+  pushover:
+    enabled: false
+    app_token: "your-pushover-app-token"
+    user_key: "your-pushover-user-key"
 
-  # ── Gotify ───────────────────────────────────────────────────────────────
-  # - type: gotify
-  #   base_url: "https://gotify.example.com"
-  #   token: "${GOTIFY_TOKEN}"
+  # lark sends alerts to Lark (Feishu) via incoming webhook.
+  lark:
+    enabled: false
+    webhook_url: "https://open.larksuite.com/open-apis/bot/v2/hook/..."
 
-  # ── Matrix ───────────────────────────────────────────────────────────────
-  # - type: matrix
-  #   homeserver: "https://matrix.example.com"
-  #   token: "${MATRIX_TOKEN}"
-  #   room_id: "!roomid:example.com"
+  # pagertree sends alerts to PagerTree.
+  pagertree:
+    enabled: false
+    webhook_url: "https://pagertree.com/api/v3/alerts"
 
-  # ── Zulip ────────────────────────────────────────────────────────────────
-  # - type: zulip
-  #   base_url: "https://yourorg.zulipchat.com"
-  #   bot_email: "vaultwatch-bot@yourorg.zulipchat.com"
-  #   api_key: "${ZULIP_API_KEY}"
-  #   stream: "alerts"
-  #   topic: "vault"
+  # linear creates Linear issues for expiring secrets.
+  linear:
+    enabled: false
+    api_key: "your-linear-api-key"
+    team_id: "your-team-id"
 
-  # ── Pushover ─────────────────────────────────────────────────────────────
-  # - type: pushover
-  #   app_token: "${PUSHOVER_APP_TOKEN}"
-  #   user_key: "${PUSHOVER_USER_KEY}"
+  # httpget fires a plain HTTP GET request with alert details as query params.
+  httpget:
+    enabled: false
+    url: "https://example.com/alert"
 
-  # ── Lark / Feishu ────────────────────────────────────────────────────────
-  # - type: lark
-  #   webhook_url: "${LARK_WEBHOOK_URL}"
+  # grafana sends annotations to a Grafana instance.
+  grafana:
+    enabled: false
+    url: "https://grafana.example.com"
+    api_key: "your-grafana-api-key"
 
-  # ── PagerTree ────────────────────────────────────────────────────────────
-  # - type: pagertree
-  #   webhook_url: "${PAGERTREE_WEBHOOK_URL}"
+  # campfire sends alerts to a Basecamp Campfire room.
+  campfire:
+    enabled: false
+    account_id: "your-account-id"
+    campfire_id: "your-campfire-id"
+    token: "your-api-token"
 
-  # ── Linear ───────────────────────────────────────────────────────────────
-  # - type: linear
-  #   api_key: "${LINEAR_API_KEY}"
-  #   team_id: "${LINEAR_TEAM_ID}"
+  # ntfy sends push notifications via ntfy.sh or a self-hosted ntfy server.
+  ntfy:
+    enabled: false
+    base_url: "https://ntfy.sh"
+    topic: "vaultwatch"
 
-  # ── BearyChat ────────────────────────────────────────────────────────────
-  # - type: bearychat
-  #   webhook_url: "${BEARYCHAT_WEBHOOK_URL}"
+  # bearychat sends alerts to BearyChat via incoming webhook.
+  bearychat:
+    enabled: false
+    webhook_url: "https://hook.bearychat.com/..."
 
-  # ── SIGNL4 ───────────────────────────────────────────────────────────────
-  # - type: signl4
-  #   webhook_url: "${SIGNL4_WEBHOOK_URL}"
+  # signl4 sends alerts to SIGNL4 for mobile alerting.
+  signl4:
+    enabled: false
+    webhook_url: "https://connect.signl4.com/webhook/..."
 
-  # ── Ntfy ─────────────────────────────────────────────────────────────────
-  # - type: ntfy
-  #   base_url: "https://ntfy.sh"
-  #   topic: "vaultwatch"
+  # googlepubsub publishes alerts to a Google Cloud Pub/Sub topic.
+  googlepubsub:
+    enabled: false
+    project_id: "your-gcp-project"
+    topic_id: "vaultwatch-alerts"
 
-  # ── Grafana Annotations ──────────────────────────────────────────────────
-  # - type: grafana
-  #   url: "https://grafana.example.com"
-  #   api_key: "${GRAFANA_API_KEY}"
-  #   dashboard_id: 42
+  # file appends alerts to a local log file.
+  file:
+    enabled: false
+    path: "/var/log/vaultwatch/alerts.log"
 
-  # ── Campfire ─────────────────────────────────────────────────────────────
-  # - type: campfire
-  #   account_id: "myaccount"
-  #   campfire_id: "123456"
-  #   token: "${CAMPFIRE_TOKEN}"
+  # exec runs an external command for each alert.
+  exec:
+    enabled: false
+    command: "/usr/local/bin/handle-vault-alert.sh"
+    timeout: "10s"
 
-  # ── Atlassian Statuspage ─────────────────────────────────────────────────
-  # - type: statuspage
-  #   page_id: "${STATUSPAGE_PAGE_ID}"
-  #   component_id: "${STATUSPAGE_COMPONENT_ID}"
-  #   api_key: "${STATUSPAGE_API_KEY}"
+  # statuspage updates a Statuspage.io component status.
+  statuspage:
+    enabled: false
+    page_id: "your-page-id"
+    component_id: "your-component-id"
+    api_key: "your-statuspage-api-key"
+
+  # amplitude tracks alert events in Amplitude analytics.
+  amplitude:
+    enabled: false
+    api_key: "your-amplitude-api-key"
+
+  # xmpp sends alerts via an XMPP gateway HTTP endpoint.
+  xmpp:
+    enabled: false
+    gateway_url: "https://xmpp-gateway.example.com/send"
+    recipient: "ops@example.com"
+
+  # freshservice creates Freshservice tickets for expiring secrets.
+  freshservice:
+    enabled: false
+    base_url: "https://yourorg.freshservice.com"
+    api_key: "your-freshservice-api-key"
+    reporter_email: "vaultwatch@example.com"
+
+  # signalwire sends SMS alerts via SignalWire.
+  signalwire:
+    enabled: false
+    space_url: "https://yourspace.signalwire.com"
+    project_id: "your-project-id"
+    api_token: "your-api-token"
+    from: "+15551234567"
+    to: "+15559876543"
