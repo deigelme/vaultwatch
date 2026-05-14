@@ -1,30 +1,30 @@
-// Package alert provides notifier implementations for various alerting
-// backends used by vaultwatch.
+// Package alert provides notifier implementations for VaultWatch.
 //
 // # OpsGenie Notifier
 //
-// The OpsGenie notifier sends alerts to the OpsGenie Alerts API.
-// It maps vaultwatch alert levels to OpsGenie priority values:
-//
-//   - Critical → P1
-//   - Warning  → P3
-//   - Info     → P5
+// The OpsGenieNotifier sends alert events to OpsGenie using the
+// OpsGenie Alert API v2 (https://docs.opsgenie.com/docs/alert-api).
 //
 // # Configuration
 //
 // Required fields:
-//
-//	notifiers:
-//	  opsgenie:
-//	    api_key: "<your-opsgenie-api-key>"
+//   - api_key: OpsGenie API integration key.
 //
 // Optional fields:
+//   - endpoint: override the default API URL (useful for testing or EU region).
+//     Defaults to https://api.opsgenie.com/v2/alerts.
 //
-//	notifiers:
-//	  opsgenie:
-//	    api_key: "<your-opsgenie-api-key>"
-//	    endpoint: "https://api.eu.opsgenie.com/v2/alerts"  # default: api.opsgenie.com
+// # Priority Mapping
 //
-// The notifier sets the alert alias to the secret path so that OpsGenie
-// can de-duplicate repeated alerts for the same secret.
+// VaultWatch alert levels are mapped to OpsGenie priorities as follows:
+//
+//	LevelCritical → P1
+//	LevelWarning  → P3
+//	LevelInfo     → P5
+//
+// # Example vaultwatch.yaml snippet
+//
+//	alerts:
+//	  - type: opsgenie
+//	    api_key: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 package alert

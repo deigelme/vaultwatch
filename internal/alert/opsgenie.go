@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-// OpsGenieNotifier sends alerts to OpsGenie.
+// OpsGenieNotifier sends alerts to OpsGenie via its REST API.
 type OpsGenieNotifier struct {
 	apiKey   string
 	endpoint string
@@ -36,18 +36,17 @@ func opsGeniePriority(level Level) string {
 	case LevelCritical:
 		return "P1"
 	case LevelWarning:
-		return "P2"
-	default:
 		return "P3"
+	default:
+		return "P5"
 	}
 }
 
-// Send delivers an Alert to OpsGenie.
+// Send dispatches an alert to OpsGenie.
 func (n *OpsGenieNotifier) Send(a Alert) error {
 	payload := map[string]interface{}{
 		"message":     a.String(),
-		"alias":       a.SecretPath,
-		"description": fmt.Sprintf("Secret %s expires in %s", a.SecretPath, a.TimeLeft.Round(time.Second)),
+		"description": fmt.Sprintf("Secret %s expires at %s", a.SecretPath, a.ExpiresAt.Format(time.RFC3339)),
 		"priority":    opsGeniePriority(a.Level),
 		"tags":        []string{"vaultwatch"},
 	}
@@ -57,17 +56,15 @@ func (n *OpsGenieNotifier) Send(a Alert) error {
 	}
 	req, err := http.NewRequest(http.MethodPost, n.endpoint, bytes.NewReader(body))
 	if err != nil {
-		return fmt.Errorf("opsgenie: create request: %w", err)
+		return fmt.Errorf("opsgenie: build request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "GenieKey "+n.apiKey)
-
 	resp, err := n.client.Do(req)
 	if err != nil {
 		return fmt.Errorf("opsgenie: send request: %w", err)
 	}
 	defer resp.Body.Close()
-
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return fmt.Errorf("opsgenie: unexpected status %d", resp.StatusCode)
 	}

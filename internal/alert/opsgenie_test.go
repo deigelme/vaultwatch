@@ -2,17 +2,18 @@ package alert
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 )
 
-func startFakeOpsGenie(t *testing.T, statusCode int, fn func(r *http.Request)) *httptest.Server {
+func startFakeOpsGenie(t *testing.T, statusCode int, handler func(r *http.Request)) *httptest.Server {
 	t.Helper()
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if fn != nil {
-			fn(r)
+		if handler != nil {
+			handler(r)
 		}
 		w.WriteHeader(statusCode)
 	}))
@@ -26,17 +27,14 @@ func TestNewOpsGenieNotifier_EmptyKey(t *testing.T) {
 }
 
 func TestOpsGenieNotifier_Send_Success(t *testing.T) {
-	var gotAuth, gotAlias string
-	var gotPriority string
+	var gotAuth, gotContentType string
+	var gotBody map[string]interface{}
 
-	srv := startFakeOpsGenie(t, http.StatusAccepted, func(r *http.Request) {
+	srv := startFakeOpsGenie(t, 202, func(r *http.Request) {
 		gotAuth = r.Header.Get("Authorization")
-		var body map[string]interface{}
-		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-			t.Fatalf("decode body: %v", err)
-		}
-		gotAlias, _ = body["alias"].(string)
-		gotPriority, _ = body["priority"].(string)
+		gotContentType = r.Header.Get("Content-Type")
+		body, _ := io.ReadAll(r.Body)
+		_ = json.Unmarshal(body, &gotBody)
 	})
 	defer srv.Close()
 
@@ -46,59 +44,59 @@ func TestOpsGenieNotifier_Send_Success(t *testing.T) {
 	}
 
 	a := Alert{
-		SecretPath: "secret/db",
 		Level:      LevelWarning,
-		TimeLeft:   48 * time.Hour,
+		SecretPath: "secret/myapp/db",
 		ExpiresAt:  time.Now().Add(48 * time.Hour),
 	}
 	if err := n.Send(a); err != nil {
-		t.Fatalf("Send returned error: %v", err)
+		t.Fatalf("Send() error: %v", err)
 	}
 	if gotAuth != "GenieKey test-key" {
-		t.Errorf("auth header = %q, want %q", gotAuth, "GenieKey test-key")
+		t.Errorf("expected GenieKey auth, got %q", gotAuth)
 	}
-	if gotAlias != "secret/db" {
-		t.Errorf("alias = %q, want %q", gotAlias, "secret/db")
+	if gotContentType != "application/json" {
+		t.Errorf("unexpected content-type: %q", gotContentType)
 	}
-	if gotPriority != "P2" {
-		t.Errorf("priority = %q, want P2", gotPriority)
+	if gotBody["priority"] != "P3" {
+		t.Errorf("expected P3 priority, got %v", gotBody["priority"])
 	}
 }
 
 func TestOpsGenieNotifier_Send_CriticalPriority(t *testing.T) {
-	var gotPriority string
-	srv := startFakeOpsGenie(t, http.StatusAccepted, func(r *http.Request) {
-		var body map[string]interface{}
-		_ = json.NewDecoder(r.Body).Decode(&body)
-		gotPriority, _ = body["priority"].(string)
+	var gotBody map[string]interface{}
+	srv := startFakeOpsGenie(t, 202, func(r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		_ = json.Unmarshal(body, &gotBody)
 	})
 	defer srv.Close()
 
 	n, _ := NewOpsGenieNotifier("key", srv.URL)
-	_ = n.Send(Alert{Level: LevelCritical, TimeLeft: time.Hour})
-
-	if gotPriority != "P1" {
-		t.Errorf("priority = %q, want P1", gotPriority)
+	a := Alert{Level: LevelCritical, SecretPath: "secret/crit", ExpiresAt: time.Now().Add(time.Hour)}
+	if err := n.Send(a); err != nil {
+		t.Fatalf("Send() error: %v", err)
+	}
+	if gotBody["priority"] != "P1" {
+		t.Errorf("expected P1 for critical, got %v", gotBody["priority"])
 	}
 }
 
 func TestOpsGenieNotifier_Send_NonOKStatus(t *testing.T) {
-	srv := startFakeOpsGenie(t, http.StatusUnauthorized, nil)
+	srv := startFakeOpsGenie(t, 429, nil)
 	defer srv.Close()
 
-	n, _ := NewOpsGenieNotifier("bad-key", srv.URL)
-	err := n.Send(Alert{Level: LevelWarning, TimeLeft: time.Hour})
-	if err == nil {
+	n, _ := NewOpsGenieNotifier("key", srv.URL)
+	a := Alert{Level: LevelInfo, SecretPath: "secret/x", ExpiresAt: time.Now().Add(72 * time.Hour)}
+	if err := n.Send(a); err == nil {
 		t.Fatal("expected error for non-2xx status")
 	}
 }
 
 func TestOpsGenieNotifier_Send_DefaultEndpoint(t *testing.T) {
-	n, err := NewOpsGenieNotifier("key", "")
+	n, err := NewOpsGenieNotifier("mykey", "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if n.endpoint != "https://api.opsgenie.com/v2/alerts" {
-		t.Errorf("default endpoint = %q", n.endpoint)
+		t.Errorf("unexpected default endpoint: %s", n.endpoint)
 	}
 }
